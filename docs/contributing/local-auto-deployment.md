@@ -106,7 +106,9 @@ the cutover backup and rollback material have been verified.
    Add the same route to the installed Konata settings and build snapshot.
 6. Run `inspect`, then reinstall the controller without `--prepare` to enable its
    timer. Supplementary group access takes effect for the new controller process;
-   use a new login for manual operator commands.
+   use a new login for manual operator commands. Installer preflight keeps the operator's
+   primary group while adding the read-only settings group, so operator-group configuration
+   files remain readable.
 
 The timer checks after boot and every minute after the prior cycle ends. Updating
 controller implementation requires rerunning its installer; application pushes

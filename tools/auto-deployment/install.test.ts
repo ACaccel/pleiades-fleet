@@ -47,6 +47,26 @@ describe('controller installer validation', () => {
     ).toBe(true);
   });
 
+  it('retains the operator primary group when adding settings access', () => {
+    expect(evaluate(`installer.operatorIdentityArguments('operator','operators',true)`)).toEqual([
+      '-u',
+      'operator',
+      '--group',
+      'operators',
+      '--supp-group',
+      'pleiades-settings',
+    ]);
+  });
+
+  it('prepares the controller before the settings group exists', () => {
+    expect(evaluate(`installer.operatorIdentityArguments('operator','operators',false)`)).toEqual([
+      '-u',
+      'operator',
+      '--group',
+      'operators',
+    ]);
+  });
+
   it('pins every executable and working-directory reference to the validated immutable snapshot', () => {
     const snapshot = '/opt/pleiades-auto-deploy/releases/123-456';
     const units = evaluate(

@@ -88,6 +88,17 @@ function ownTree(root, path = root) {
   if (info.isDirectory()) for (const name of readdirSync(path)) ownTree(root, join(path, name));
 }
 
+/** runuser otherwise makes the first explicit supplementary group the primary group. */
+export function operatorIdentityArguments(user, primaryGroup, fullConfiguration) {
+  return [
+    '-u',
+    user,
+    '--group',
+    primaryGroup,
+    ...(fullConfiguration ? ['--supp-group', 'pleiades-settings'] : []),
+  ];
+}
+
 /** Keep settings/key validation in the controller's own modules; the request stub never sends. */
 export function operatorPreflightScript(fullConfiguration) {
   const bootstrap = `require('./scripts/auto-deployment/host');`;
@@ -206,6 +217,7 @@ export function main(args = process.argv.slice(2)) {
   if (process.getuid?.() !== 0) throw new Error('Controller installation requires root');
   if (realpathSync(source) !== source) throw new Error('Controller source cannot contain symlinks');
   const home = run('/usr/bin/getent', ['passwd', user]).split(':')[5];
+  const primaryGroup = run('/usr/bin/id', ['-gn', user]);
   renderControllerUnits(user, home);
   if (run('/usr/bin/git', ['-C', source, 'status', '--porcelain', '--untracked-files=normal']))
     throw new Error('Commit and validate source changes before installing the controller');
@@ -263,9 +275,7 @@ export function main(args = process.argv.slice(2)) {
     run(
       '/usr/sbin/runuser',
       [
-        '-u',
-        user,
-        ...(!prepareOnly ? ['--supp-group', 'pleiades-settings'] : []),
+        ...operatorIdentityArguments(user, primaryGroup, !prepareOnly),
         '--',
         '/usr/bin/env',
         '-i',
