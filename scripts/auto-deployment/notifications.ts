@@ -33,7 +33,11 @@ export function deploymentNotice(
   };
 }
 
-/** Keep one latest payload per commit; a newer progress update replaces an older failure. */
+/**
+ * Keep one latest payload per commit; a newer progress update replaces an older failure.
+ * The saved copy is stamped with the time this update was produced, so a retry delivered
+ * after a relay outage still shows when it happened; the caller's object stays unstamped.
+ */
 export function queueNotice(
   state: AutoDeploymentState,
   sha: string,
@@ -44,7 +48,10 @@ export function queueNotice(
   state.outbox = state.outbox.filter((entry) => entry.key !== key);
   state.outbox.push({
     key,
-    notification: structuredClone(notification),
+    notification: {
+      ...structuredClone(notification),
+      occurredAt: notification.occurredAt ?? new Date(now).toISOString(),
+    },
     attempts: 0,
     nextAttemptAt: now,
     updatedAt: now,

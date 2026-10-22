@@ -448,6 +448,35 @@ describe('bounded latest-only notification outbox', () => {
     expect(state.outbox).toHaveLength(MAX_OUTBOX_THREADS);
   });
 
+  it('stamps each queued update with its own time and keeps it across durable retries', async () => {
+    const f = fixture();
+    let state = initialState();
+    const notice = deploymentNotice(SHA, 1, { bots: ['konata'], databaseServices: [] });
+    queueNotice(state, SHA, notice, 1_000);
+    expect(state.outbox[0]?.notification.occurredAt).toBe(new Date(1_000).toISOString());
+    notice.status = 'failed';
+    queueNotice(state, SHA, notice, 61_000);
+    expect(notice.occurredAt).toBeUndefined();
+    expect(state.outbox[0]?.notification.occurredAt).toBe(new Date(61_000).toISOString());
+    const provided = new Date(500).toISOString();
+    queueNotice(state, NEXT, { ...notice, occurredAt: provided }, 61_000);
+    expect(state.outbox[1]?.notification.occurredAt).toBe(provided);
+
+    f.advance(60_000);
+    f.put.mockRejectedValue(new Error('Relay rejected the update'));
+    await flushOutbox(state, f.adapters);
+    expect(state.outbox.map((entry) => entry.attempts)).toEqual([1, 1]);
+    state = parseControllerState(JSON.parse(JSON.stringify(state)) as unknown);
+    f.advance(3 * 60 * 60 * 1000);
+    f.put.mockResolvedValue(undefined);
+    await flushOutbox(state, f.adapters);
+    expect(f.put.mock.calls.slice(-2).map(([, payload]) => payload.occurredAt)).toEqual([
+      new Date(61_000).toISOString(),
+      provided,
+    ]);
+    expect(state.outbox).toEqual([]);
+  });
+
   it('retains and retries a failed result across a multi-hour outage with bounded sends', async () => {
     const f = fixture();
     const state = initialState();
@@ -549,11 +578,15 @@ describe('protected durable state and loopback relay', () => {
       method: 'PUT',
       redirect: 'error',
     });
+    request.mockResolvedValueOnce(new Response('{"error":"invalid body"}', { status: 400 }));
+    await expect(client.put(notificationKey(SHA), notice)).rejects.toThrow(
+      /^Deployment notification delivery failed$/,
+    );
     chmodSync(keyFile, 0o644);
     await expect(client.put(notificationKey(SHA), notice)).rejects.toThrow(
       'Deployment notification delivery failed',
     );
-    expect(request).toHaveBeenCalledOnce();
+    expect(request).toHaveBeenCalledTimes(2);
     chmodSync(keyFile, 0o600);
     request.mockRejectedValueOnce(new Error('synthetic-test-key-only-000000000000'));
     await expect(client.put(notificationKey(SHA), notice)).rejects.toThrow(

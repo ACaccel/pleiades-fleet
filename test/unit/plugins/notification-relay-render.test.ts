@@ -2,9 +2,14 @@
 import { describe, expect, it } from 'vitest';
 
 import { EMBED_COLORS } from '../../../src/infra/discord/presentation-colors';
-import { renderNotification } from '../../../src/plugins/notification-relay/internal/render';
+import {
+  DELAYED_DELIVERY_THRESHOLD_MS,
+  renderNotification,
+} from '../../../src/plugins/notification-relay/internal/render';
 import {
   NotificationSchema,
+  OCCURRED_AT_MAX_SKEW_MS,
+  parseNotificationRequest,
   type Notification,
 } from '../../../src/plugins/notification-relay/internal/request';
 import { echoTranslator } from '../../fixtures/runtime';
@@ -12,6 +17,8 @@ import { echoTranslator } from '../../fixtures/runtime';
 const AT = new Date('2026-10-15T08:00:00.000Z');
 
 const base: Notification = { title: 'Deploy b5ffd42', stages: [], status: 'running' };
+
+const before = (ms: number): string => new Date(AT.getTime() - ms).toISOString();
 
 describe('renderNotification', () => {
   it('marks every stage state and lists stages after the description', () => {
@@ -70,6 +77,26 @@ describe('renderNotification', () => {
     });
   });
 
+  it('stamps the embed with occurredAt and keeps a prompt delivery unmarked', () => {
+    for (const occurredAt of [before(DELAYED_DELIVERY_THRESHOLD_MS), before(-60_000)]) {
+      const embed = renderNotification({ ...base, occurredAt }, echoTranslator(), AT);
+
+      expect(embed.timestamp).toBe(occurredAt);
+      expect(embed.fields).toHaveLength(1);
+    }
+  });
+
+  it('marks a delivery later than the threshold with the delivery time', () => {
+    const occurredAt = before(DELAYED_DELIVERY_THRESHOLD_MS + 1);
+    const embed = renderNotification({ ...base, occurredAt }, echoTranslator(), AT);
+
+    expect(embed.timestamp).toBe(occurredAt);
+    expect(embed.fields?.at(-1)).toEqual({
+      name: 'replies:notification_relay.delayed_field',
+      value: `<t:${AT.getTime() / 1000}:f>`,
+    });
+  });
+
   it('stays within Discord embed limits for the largest accepted request', () => {
     const largest = NotificationSchema.parse({
       title: 't'.repeat(256),
@@ -78,6 +105,7 @@ describe('renderNotification', () => {
       stages: Array.from({ length: 10 }, () => ({ label: 'l'.repeat(100), state: 'running' })),
       status: 'failed',
       summary: 's'.repeat(500),
+      occurredAt: before(7 * 24 * 60 * 60_000),
     });
     const embed = renderNotification(largest, echoTranslator(), AT);
     const total =
@@ -103,5 +131,33 @@ describe('NotificationSchema', () => {
     ['a missing stage list', { title: 't', status: 'running' }],
   ])('rejects %s', (_label, body) => {
     expect(NotificationSchema.safeParse(body).success).toBe(false);
+  });
+});
+
+describe('parseNotificationRequest', () => {
+  it.each([
+    ['no occurredAt', undefined],
+    ['a past occurredAt', before(3 * 60 * 60_000)],
+    ['sub-millisecond precision', '2026-10-15T07:59:59.123456Z'],
+    ['an occurredAt at the skew allowance', before(-OCCURRED_AT_MAX_SKEW_MS)],
+  ])('accepts %s', (_label, occurredAt) => {
+    const body = occurredAt === undefined ? base : { ...base, occurredAt };
+    const parsed = parseNotificationRequest(body, AT);
+
+    expect(parsed.success && parsed.data).toEqual(body);
+  });
+
+  it.each([
+    ['a future occurredAt beyond the skew allowance', before(-OCCURRED_AT_MAX_SKEW_MS - 1)],
+    ['a time zone offset', '2026-10-15T16:00:00+08:00'],
+    ['a date without a time', '2026-10-15'],
+    ['an impossible date', '2026-02-30T08:00:00Z'],
+    ['free text', 'yesterday'],
+    ['a number', AT.getTime()],
+  ])('rejects %s', (_label, occurredAt) => {
+    const parsed = parseNotificationRequest({ ...base, occurredAt }, AT);
+
+    expect(parsed.success).toBe(false);
+    expect(parsed.error?.issues.map((issue) => issue.path.join('.'))).toEqual(['occurredAt']);
   });
 });

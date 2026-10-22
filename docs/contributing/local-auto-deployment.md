@@ -71,7 +71,10 @@ No successful deployment is failed by a notification outage.
 The durable outbox keeps at most 100 commit threads for seven days, with at most
 40 delivery attempts per saved payload. Polls retry notifications even while
 installation is halted; each flush is bounded to eight deliveries. New progress
-replaces older pending progress for the same commit. These limits bound offline
+replaces older pending progress for the same commit. Each saved update carries
+the time it was produced as `occurredAt`, so a retry delivered after an outage shows
+the original time and is marked as delivered late. A rejected PUT, including a
+`4xx`, is kept and retried like a network failure. These limits bound offline
 state and retries; delivery is best effort, not guaranteed during a prolonged outage.
 
 ## Install

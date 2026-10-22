@@ -561,6 +561,7 @@
   "notification_relay": {
     "status_field": "狀態",
     "summary_field": "摘要",
+    "delayed_field": "延遲送達",
     "status": {
       "running": "進行中",
       "succeeded": "成功",

@@ -561,6 +561,7 @@
   "notification_relay": {
     "status_field": "Status",
     "summary_field": "Summary",
+    "delayed_field": "Delivered late",
     "status": {
       "running": "In progress",
       "succeeded": "Succeeded",

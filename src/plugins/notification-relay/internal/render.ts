@@ -8,6 +8,9 @@ import type { Notification, NotificationStatus, StageState } from './request';
 /** Discord's embed description limit. */
 const DESCRIPTION_LIMIT = 4096;
 
+/** An update this much older than its delivery is marked as delivered late. */
+export const DELAYED_DELIVERY_THRESHOLD_MS = 2 * 60_000;
+
 const STAGE_MARKS: Readonly<Record<StageState, string>> = {
   pending: '○',
   running: '●',
@@ -26,15 +29,23 @@ const STATUS_COLORS: Readonly<Record<NotificationStatus, number>> = {
 const truncate = (text: string, limit: number): string =>
   text.length <= limit ? text : `${text.slice(0, limit - 1)}…`;
 
+/** Discord renders this markup in each viewer's own time zone. */
+const discordTime = (at: Date): string => `<t:${Math.floor(at.getTime() / 1000)}:f>`;
+
 /**
  * The request schema already bounds every part within Discord's limits; the
  * description is truncated anyway because it joins two caller inputs.
+ *
+ * The embed timestamp is when the caller produced the update, falling back to
+ * the delivery time; a late delivery also states when it arrived.
  */
 export const renderNotification = (
   notification: Notification,
   translator: Pick<Translator, 't'>,
-  timestamp: Date,
+  deliveredAt: Date,
 ): APIEmbed => {
+  const occurredAt =
+    notification.occurredAt === undefined ? deliveredAt : new Date(notification.occurredAt);
   const stageLines = notification.stages.map(
     (stage) => `${STAGE_MARKS[stage.state]} ${stage.label}`,
   );
@@ -53,12 +64,18 @@ export const renderNotification = (
       value: notification.summary,
     });
   }
+  if (deliveredAt.getTime() - occurredAt.getTime() > DELAYED_DELIVERY_THRESHOLD_MS) {
+    fields.push({
+      name: translator.t('replies:notification_relay.delayed_field'),
+      value: discordTime(deliveredAt),
+    });
+  }
   return {
     title: notification.title,
     ...(notification.url === undefined ? {} : { url: notification.url }),
     ...(description.length === 0 ? {} : { description: truncate(description, DESCRIPTION_LIMIT) }),
     color: STATUS_COLORS[notification.status],
     fields,
-    timestamp: timestamp.toISOString(),
+    timestamp: occurredAt.toISOString(),
   };
 };

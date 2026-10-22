@@ -650,6 +650,7 @@ JSON body of at most 16 KB:
 | `stages`      | list of `label` (1–100 characters) and `state` (`pending`, `running`, `done`, `failed` or `skipped`) | 0–10 items |
 | `status`      | `running`, `succeeded`, `failed` or `cancelled`                                                      | —          |
 | `summary`     | optional outcome line                                                                                | 500        |
+| `occurredAt`  | optional ISO 8601 UTC time (`Z` suffix) when the caller produced the update                          | —          |
 
 - `<key>` (`^[A-Za-z0-9._-]{1,100}$`) names one notification thread. The first PUT
   for a route and key posts a message; later PUTs edit it, also after a restart. A
@@ -657,6 +658,11 @@ JSON body of at most 16 KB:
 - Unknown body fields are rejected. Caller text is shown verbatim and pings nobody.
   Stages are marked ○ pending, ● running, ✓ done, ✗ failed, – skipped; the status
   sets the embed color and a localized label.
+- The embed timestamp is `occurredAt`, or the delivery time without it. A value
+  more than 5 minutes ahead of the relay clock is rejected. An update delivered more
+  than 2 minutes after its `occurredAt` adds a localized "delivered late" field with
+  the delivery time, shown in each viewer's time zone. A caller that retries an
+  update keeps its original `occurredAt`.
 - Responses: `200 {"messageId", "created"}`; `400` invalid key or body; `401` missing
   or wrong token, checked before anything but the route name's syntax; `404` unknown
   route; `413` body too large; `503` Discord not ready or database unavailable;

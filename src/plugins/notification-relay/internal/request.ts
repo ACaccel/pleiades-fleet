@@ -1,6 +1,6 @@
 /**
  * The request contract of `PUT /notifications/:route/:key`. Every display
- * string comes from the caller verbatim; only status labels are translated.
+ * string comes from the caller verbatim; only labels are translated.
  */
 import { z } from 'zod';
 
@@ -30,7 +30,34 @@ export const NotificationSchema = z
       .max(10),
     status: z.enum(NOTIFICATION_STATUSES),
     summary: z.string().max(500).optional(),
+    /** When the caller produced this update; a retried update keeps its original time. */
+    occurredAt: z.string().datetime().optional(),
   })
   .strict();
 
 export type Notification = z.infer<typeof NotificationSchema>;
+
+/** Clock skew tolerated between a caller and the relay for `occurredAt`. */
+export const OCCURRED_AT_MAX_SKEW_MS = 5 * 60_000;
+
+/**
+ * Parse a request body against the relay clock. Persisted copies of a
+ * notification use {@link NotificationSchema} alone, because only a fresh
+ * request can be checked against the current time.
+ */
+export const parseNotificationRequest = (
+  body: unknown,
+  now: Date,
+): z.SafeParseReturnType<unknown, Notification> =>
+  NotificationSchema.superRefine((notification, ctx) => {
+    if (
+      notification.occurredAt !== undefined &&
+      Date.parse(notification.occurredAt) - now.getTime() > OCCURRED_AT_MAX_SKEW_MS
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['occurredAt'],
+        message: 'must not be in the future',
+      });
+    }
+  }).safeParse(body);

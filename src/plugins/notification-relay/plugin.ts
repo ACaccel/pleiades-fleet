@@ -98,6 +98,7 @@ export const createNotificationRelayPlugin = (
         routes,
         isAuthorized: createBearerCheck(apiKey),
         relay,
+        clock: ctx.clock,
         logger: ctx.logger,
       });
 

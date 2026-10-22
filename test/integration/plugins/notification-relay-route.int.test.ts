@@ -45,7 +45,7 @@ afterEach(async () => {
 });
 
 const start = async (
-  options: { ready?: boolean; guildId?: string; storeThrows?: boolean } = {},
+  options: { ready?: boolean; guildId?: string; storeThrows?: boolean; now?: Date } = {},
 ): Promise<Harness> => {
   let sent = 0;
   const send = vi.fn(async () => ({ id: `message-${(sent += 1)}` }));
@@ -83,7 +83,12 @@ const start = async (
       lines.push(args);
     });
   }
-  const ctx = buildPluginContext({ logger, resolve: container.resolve.bind(container) });
+  const now = options.now;
+  const ctx = buildPluginContext({
+    logger,
+    resolve: container.resolve.bind(container),
+    ...(now === undefined ? {} : { clock: { now: () => now.getTime(), nowDate: () => now } }),
+  });
   const plugin = createNotificationRelayPlugin(
     { botId: 'konata', port: 0, apiKey: KEY, routes: ROUTES },
     { store: async () => repo },
@@ -181,6 +186,24 @@ describe('notification relay HTTP API', () => {
 
     expect((await put(h, DEPLOY, '{not json')).status).toBe(400);
     expect(h.send).not.toHaveBeenCalled();
+  });
+
+  it('accepts a past or slightly skewed occurredAt and rejects a malformed or future one', async () => {
+    const now = new Date('2026-10-15T08:00:00.000Z');
+    const h = await start({ now });
+    const at = (offsetMs: number): string => new Date(now.getTime() + offsetMs).toISOString();
+
+    const late = await put(h, DEPLOY, { ...BODY, occurredAt: at(-3 * 60 * 60_000) });
+    expect(late.status).toBe(200);
+    const embed = (h.send.mock.calls[0]?.[0] as { embeds: { timestamp: string }[] }).embeds[0];
+    expect(embed?.timestamp).toBe(at(-3 * 60 * 60_000));
+    expect((await put(h, DEPLOY, { ...BODY, occurredAt: at(5 * 60_000) })).status).toBe(200);
+
+    for (const occurredAt of [at(5 * 60_000 + 1), '2026-10-15T16:00:00+08:00', 'yesterday', 0]) {
+      const res = await put(h, DEPLOY, { ...BODY, occurredAt });
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: 'invalid body', fields: ['occurredAt'] });
+    }
   });
 
   it('answers 413 to a body over 16 KB', async () => {

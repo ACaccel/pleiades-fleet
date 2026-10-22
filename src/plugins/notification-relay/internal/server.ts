@@ -16,9 +16,10 @@ import express, {
 } from 'express';
 
 import type { Logger } from '../../../core/logger';
+import type { Clock } from '../../../core/time';
 import { ROUTE_NAME_PATTERN, type NotificationRoute } from './config';
 import type { NotificationRelay, RelayOutcome } from './relay';
-import { NotificationSchema, THREAD_KEY_PATTERN } from './request';
+import { parseNotificationRequest, THREAD_KEY_PATTERN } from './request';
 
 const BODY_LIMIT = '16kb';
 /** Field paths reported for an invalid body; enough to locate the mistake. */
@@ -28,6 +29,8 @@ export interface NotificationAppDeps {
   readonly routes: ReadonlyMap<string, NotificationRoute>;
   readonly isAuthorized: (header: string | undefined) => boolean;
   readonly relay: NotificationRelay;
+  /** Bounds how far in the future a caller's `occurredAt` may be. */
+  readonly clock: Clock;
   readonly logger: Logger;
 }
 
@@ -73,7 +76,7 @@ export const buildNotificationApp = (deps: NotificationAppDeps): Express => {
   };
 
   const relay: RequestHandler = (req, res, next) => {
-    const parsed = NotificationSchema.safeParse(req.body);
+    const parsed = parseNotificationRequest(req.body, deps.clock.nowDate());
     if (!parsed.success) {
       res.status(400).json({
         error: 'invalid body',
