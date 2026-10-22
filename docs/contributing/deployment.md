@@ -1,10 +1,17 @@
 # Runtime and systemd deployment
 
+For the dedicated-account deployment that automatically follows `dev`, use
+[local automatic deployment](local-auto-deployment.md). The manual commands below
+retain compatibility with existing deployments; an isolated configuration routes
+bot preparation/deployment through the installed restricted helper. MongoDB and
+backup migration require the linked offline cutover procedure.
+
 ## Runtime setup
 
-Follow [local setup](local-setup.md#prerequisites). `PLEIADES_CONDA_PREFIX` selects
-an absolute prefix instead of `.conda`; services use its Node directly. Keep the
-runtime available while deployed.
+Follow [local setup](local-setup.md#prerequisites). `PLEIADES_NODE_PREFIX` selects the official Node prefix and
+`PLEIADES_CONDA_PREFIX` selects fonts instead of `.conda-fonts`. New releases copy
+both into their immutable release directories; retain legacy `.conda` while old
+units still reference it.
 
 For a managed local database, create an independent runtime:
 
@@ -21,7 +28,7 @@ Copy [deployment.example.json](../../deployment.example.json) to gitignored
 `deployment.json`. Set `user` to the invoking ordinary OS user and `bots` to unique
 personality names. Run as that user; system operations request sudo. Do not run as root.
 
-Optional `runtimePrefix` overrides the launcher prefix/project `.conda`;
+Optional `runtimePrefix` overrides the official launcher prefix/project `.runtime`;
 `readinessTimeoutSeconds` is 15–600 seconds (default 120). For managed MongoDB,
 set its absolute `prefix`, an existing JSON-syntax `configFile`, and a private bot
 `probeEnvFile` containing authenticated `MONGO_URI`. Omit `mongodb` for an external
@@ -140,8 +147,9 @@ Failures restore prior units and enabled/active state. After interruption, run
 rollback fails. Committed transactions are finalized without reverting.
 
 Rollback restores code/dependencies/units, but not shared configuration, database
-writes or external actions. Runtime updates require undeploying first; releases do
-not restore runtimes. Bot undeploy leaves MongoDB running; database undeploy preserves
+writes or external actions. New releases restore their copied runtime and fonts as part of rollback.
+Legacy releases may still depend on an external Conda runtime; retain it until no
+installed unit or recovery journal references it. Bot undeploy leaves MongoDB running; database undeploy preserves
 data, settings, environments and releases. For host transfer, follow
 [migration](../../tools/migration/README.md); exports exclude runtimes and deployment state.
 

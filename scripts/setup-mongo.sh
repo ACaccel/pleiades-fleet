@@ -27,9 +27,14 @@ if [[ -d "$mongo_prefix/conda-meta" ]]; then
 else
   "$conda_command" env create --prefix "$mongo_prefix" --file "$project_root/environments/mongodb.yml" --yes
 fi
-export PATH="$mongo_prefix/bin:$PATH"
+# MongoDB binaries do not require Node. Use the separately verified application
+# runtime only for installing and invoking the JavaScript mongosh CLI.
+node_path="$(node "$project_root/scripts/runtime.mjs" path)"
+node_prefix="$(dirname -- "$(dirname -- "$node_path")")"
+export PATH="$node_prefix/bin:$mongo_prefix/bin:$PATH"
 unset NODE_PATH npm_config_prefix NPM_CONFIG_PREFIX
-"$mongo_prefix/bin/node" "$mongo_prefix/lib/node_modules/npm/bin/npm-cli.js" install --global --prefix "$mongo_prefix" mongosh@2.10.0 --no-audit --no-fund
-for tool in mongod mongodump mongorestore mongosh; do
+"$node_path" "$node_prefix/lib/node_modules/npm/bin/npm-cli.js" install --global --prefix "$mongo_prefix" mongosh@2.10.0 --no-audit --no-fund
+for tool in mongod mongodump mongorestore; do
   "$mongo_prefix/bin/$tool" --version
 done
+"$node_path" "$mongo_prefix/bin/mongosh" --version

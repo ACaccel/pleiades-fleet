@@ -11,6 +11,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { arch, platform } from 'node:os';
 import { userInfo } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { parse } from 'dotenv';
@@ -34,9 +35,9 @@ export function readConfig(root: string): DeploymentConfig {
       'Copy deployment.example.json to deployment.json and configure this host first',
     );
   const config = deploymentSchema.parse(JSON.parse(readFileSync(configFile, 'utf8')));
-  if (config.user !== userInfo().username || process.getuid?.() === 0)
+  if ((!config.isolation && config.user !== userInfo().username) || process.getuid?.() === 0)
     throw new Error(
-      'Run deployment as the configured ordinary service user; only system operations use sudo',
+      'Run deployment as an ordinary user; legacy services require their configured owner',
     );
   return config;
 }
@@ -49,6 +50,44 @@ export function validatePrefix(prefix: string, executable: string): void {
   const hooks = join(prefix, 'etc/conda/activate.d');
   if (existsSync(hooks) && readdirSync(hooks).some((name) => name.endsWith('.sh')))
     throw new Error(`Conda activation hooks require an explicit service launcher: ${hooks}`);
+}
+export function runtimePrefixFor(root: string, config: DeploymentConfig): string {
+  const version = readFileSync(join(root, '.nvmrc'), 'utf8').trim();
+  if (!/^22\.\d+\.\d+$/.test(version))
+    throw new Error('.nvmrc must pin an exact Node.js 22 version');
+  if (platform() !== 'linux' || !['x64', 'arm64'].includes(arch()))
+    throw new Error('Deployment supports Linux x64 and arm64 only');
+  const prefix = realpathSync(
+    config.runtimePrefix ??
+      resolve(
+        process.env.PLEIADES_NODE_PREFIX ?? join(root, `.runtime/node-v${version}-linux-${arch()}`),
+      ),
+  );
+  validateNodePrefix(prefix, version);
+  return prefix;
+}
+function validateNodePrefix(prefix: string, expectedVersion: string): void {
+  if (!/^22\.\d+\.\d+$/.test(expectedVersion) || !existsSync(join(prefix, 'bin/node')))
+    throw new Error(`Missing official Node.js runtime at ${prefix}; run its setup script`);
+  const metadata = JSON.parse(
+    readFileSync(join(prefix, '.pleiades-runtime.json'), 'utf8'),
+  ) as Record<string, unknown>;
+  if (
+    metadata.version !== expectedVersion ||
+    metadata.npmVersion !== '10.9.2' ||
+    metadata.source !==
+      `https://nodejs.org/dist/v${expectedVersion}/node-v${expectedVersion}-linux-${arch()}.tar.xz` ||
+    typeof metadata.sha256 !== 'string' ||
+    !/^[a-f0-9]{64}$/.test(metadata.sha256)
+  )
+    throw new Error('Invalid official Node.js runtime metadata');
+  const npm = join(prefix, 'lib/node_modules/npm/bin/npm-cli.js');
+  if (
+    !existsSync(npm) ||
+    run(join(prefix, 'bin/node'), ['--version']).trim() !== `v${expectedVersion}` ||
+    run(join(prefix, 'bin/node'), [npm, '--version']).trim() !== '10.9.2'
+  )
+    throw new Error('Deployment runtime must match the pinned Node.js and npm versions');
 }
 function localFiles(root: string, release: string): void {
   // Git identifies ignored operational files without copying unrelated home-directory state.
@@ -84,17 +123,18 @@ export function makeRelease(
   only?: BotName,
 ): Release {
   const bots = only ? [only] : config.bots;
-  const prefix = realpathSync(
-    config.runtimePrefix ?? resolve(process.env.PLEIADES_CONDA_PREFIX ?? join(root, '.conda')),
-  );
-  validatePrefix(prefix, 'node');
-  const version = run(join(prefix, 'bin/node'), ['--version']).trim();
-  if (!/^v22\.(?:1[3-9]|[2-9]\d|\d{3,})\./.test(version))
-    throw new Error('Deployment requires Node 22.13+ within Node 22');
+  const sourcePrefix = runtimePrefixFor(root, config);
+  const fonts = resolve(process.env.PLEIADES_CONDA_PREFIX ?? join(root, '.conda-fonts'), 'fonts');
+  if (!existsSync(join(fonts, 'NotoSansCJKtc-VF.ttf')))
+    throw new Error('Missing runtime fonts; run bash scripts/setup-env.sh');
   const directory = join(root, '.deploy/releases', `${Date.now()}-${randomUUID()}`);
   mkdirSync(directory, { recursive: true, mode: 0o700 });
-  const release: Release = { root, directory, prefix, config, units: {} };
+  const prefix = join(directory, 'runtime');
+  const fontDirectory = join(directory, 'fonts');
+  const release: Release = { root, directory, prefix, fontDirectory, config, units: {} };
   try {
+    cpSync(sourcePrefix, prefix, { recursive: true, dereference: false, verbatimSymlinks: true });
+    cpSync(fonts, fontDirectory, { recursive: true, dereference: true });
     if (mongodbOnly) {
       if (!config.mongodb) throw new Error('Configure mongodb before preparing its service');
       validatePrefix(config.mongodb.prefix, 'mongod');
@@ -140,7 +180,11 @@ export function makeRelease(
           throw new Error(`Missing config.json for ${bot}`);
         validateBotSettings(bot, readFileSync(join(root, 'src/bot', bot, 'config.json'), 'utf8'));
       }
-      cpSync(join(root, 'src'), join(directory, 'src'), { recursive: true, dereference: false });
+      cpSync(join(root, 'src'), join(directory, 'src'), {
+        recursive: true,
+        dereference: false,
+        verbatimSymlinks: true,
+      });
       for (const name of ['package.json', 'package-lock.json', 'tsconfig.json'])
         cpSync(join(root, name), join(directory, name));
       cpSync(join(root, 'scripts/mongo-ready.ts'), join(directory, 'scripts/mongo-ready.ts'), {
@@ -165,7 +209,7 @@ export function makeRelease(
           '-e',
           "require('ts-node/register'); require('./src/infra/graphics/canvas-font').ensureCanvasFont(); require('tsconfig-paths'); require('./src/i18n/locales/en/commands.json')",
         ],
-        { cwd: directory },
+        { cwd: directory, env: { ...process.env, PLEIADES_FONT_DIR: fontDirectory } },
       );
       for (const bot of bots) {
         const values = parse(readFileSync(join(directory, 'src/bot', bot, '.env')));

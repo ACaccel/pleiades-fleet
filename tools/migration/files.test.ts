@@ -34,7 +34,7 @@ describe('ignored runtime inventory', () => {
   it('includes ignored runtime data and backups, excluding source and regenerated artifacts', async () => {
     await file(
       '.gitignore',
-      '.env\nconfig.json\nlogs/\ndata/\nbackups/\nnode_modules/\ndist/\ncoverage/\n.plan/\n.conda/\n.deploy/\ndeployment.json\ntools/migration/\n',
+      '.env\nconfig.json\nlogs/\ndata/\nbackups/\nnode_modules/\ndist/\ncoverage/\n.plan/\n.conda/\n.runtime/\n.conda-fonts/\n.deploy/\ndeployment.json\ntools/migration/\n',
     );
     const included = [
       '.env',
@@ -46,6 +46,9 @@ describe('ignored runtime inventory', () => {
     ];
     const excluded = [
       '.conda/bin/node',
+      '.runtime/node-v22.23.4-linux-x64/bin/node',
+      '.runtime/node-v22.23.4-linux-x64/.pleiades-runtime.json',
+      '.conda-fonts/fonts/NotoColorEmoji.ttf',
       '.deploy/releases/old/src/bot/tomori/.env',
       'deployment.json',
       'index.ts',
@@ -98,6 +101,15 @@ describe('ignored runtime inventory', () => {
     await file('data/keep');
     await fs.mkdir(path.join(repo, 'node_modules'));
     await fs.symlink('/missing', path.join(repo, 'node_modules/link'));
+    expect((await inventoryIgnored(repo)).map((record) => record.path)).toEqual(['data/keep']);
+  });
+  it('does not traverse regenerated Node and font prefixes, including their symlinks', async () => {
+    await file('.gitignore', '.runtime/\n.conda-fonts/\ndata/\n');
+    await file('data/keep');
+    await fs.mkdir(path.join(repo, '.runtime'));
+    await fs.mkdir(path.join(repo, '.conda-fonts'));
+    await fs.symlink('/missing-node-runtime', path.join(repo, '.runtime/node'));
+    await fs.symlink('/missing-font', path.join(repo, '.conda-fonts/font'));
     expect((await inventoryIgnored(repo)).map((record) => record.path)).toEqual(['data/keep']);
   });
   it('rejects control characters and special files', async () => {

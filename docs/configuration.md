@@ -12,6 +12,8 @@ out of Git. Use JSON **strings** for Discord IDs.
 
 See [local setup](contributing/local-setup.md) and
 [deployment](contributing/deployment.md) for runtime and service settings.
+CI-gated `dev` updates and isolated production paths are described in
+[local auto-deployment](contributing/local-auto-deployment.md).
 
 ## Environment variables
 
@@ -34,7 +36,26 @@ placeholders fail startup; there is no root `.env.example`.
 | `MONGO_INSPECT_URI`                                                    | Read-only account for nijika's [`/db`](#database-inspection); required once `db` is enabled             |
 | `NOTIFY_API_PORT`                                                      | Optional konata [notification relay](#notification-relay-api) port (1–65535); blank means absent        |
 | `NOTIFY_API_KEY`                                                       | Relay bearer secret, at least 32 characters; required when `NOTIFY_API_PORT` is set                     |
+| `PLEIADES_FONT_DIR`                                                    | Optional absolute directory containing the CJK and emoji font assets; normally supplied by the launcher |
 | `PLEIADES_READY_FILE`                                                  | Deployment-managed startup marker; omit for manual startup                                              |
+
+### Runtime launcher settings
+
+These settings belong to setup and the runtime launcher, rather than bot secrets:
+
+| Variable                | Purpose                                                                                                                                                               |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PLEIADES_NODE_PREFIX`  | Absolute official Node prefix; defaults to `.runtime/node-v<.nvmrc>-linux-<x64\|arm64>`. Node must match `.nvmrc` exactly and npm must be 10.9.2. Unset during setup. |
+| `PLEIADES_CONDA_PREFIX` | Absolute fonts-only Conda prefix; the launcher defaults to `.conda-fonts/`. Setup rejects a prefix that still contains Node.                                          |
+| `PLEIADES_FONT_DIR`     | Absolute font asset directory; the launcher defaults to `<PLEIADES_CONDA_PREFIX>/fonts`. Deployed services use their release-owned font directory.                    |
+| `CONDA_EXE`             | Conda executable used by setup; otherwise setup finds `conda` on `PATH`.                                                                                              |
+
+Set launcher variables in the calling environment or service definition, before
+`runtime.mjs` starts; a bot's `.env` cannot choose the launcher runtime. With no
+explicit font directory, direct application startup also supports
+`<PLEIADES_CONDA_PREFIX>/fonts` and the original `../fonts` beside the Node binary
+for legacy Conda releases. See [setup](contributing/local-setup.md#prerequisites)
+for official download verification and installation.
 
 ### Log retention
 
@@ -600,6 +621,11 @@ Konata can relay progress notifications from services on the same host, such as
 a deployment controller: the first update posts an embed, later updates edit it.
 The API is off unless `NOTIFY_API_PORT` is set, binds `127.0.0.1` only, and needs
 konata's MongoDB. Enable it with the [operator steps](contributing/operations.md#notification-relay).
+
+The [Pleiades auto-deployment controller](contributing/local-auto-deployment.md)
+uses one editable notification per commit and names the bots and database services
+included in that deployment. Konata's own redeployment does not suppress
+notifications: temporary relay outages leave the latest progress queued for retry.
 
 Routes map a name to a channel; callers name a route, never a channel:
 

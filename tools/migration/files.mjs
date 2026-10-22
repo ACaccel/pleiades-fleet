@@ -123,7 +123,17 @@ export function excludeCode(relative) {
   const parts = relative.split(path.sep);
   return (
     parts.some((part) =>
-      ['.git', '.plan', '.conda', '.deploy', 'node_modules', 'dist', 'coverage'].includes(part),
+      [
+        '.git',
+        '.plan',
+        '.conda',
+        '.runtime',
+        '.conda-fonts',
+        '.deploy',
+        'node_modules',
+        'dist',
+        'coverage',
+      ].includes(part),
     ) ||
     relative === 'deployment.json' ||
     (parts[0] === 'tools' &&

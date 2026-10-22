@@ -38,7 +38,7 @@ let backup: {
 let installer: {
   readSettings: (
     root: string,
-    overrides?: { backupDir?: string; keep?: string },
+    overrides?: { backupDir?: string; keep?: string; release?: string },
   ) => Promise<Settings>;
   renderUnits: (settings: Settings) => Record<string, string>;
   parseArgs: (args: string[]) => { action: string; output?: string };
@@ -298,5 +298,34 @@ describe('install', () => {
     expect(() => installer.parseArgs(['render', 'relative'])).toThrow(/Usage/);
     expect(() => installer.parseArgs(['uninstall', '--keep', '1'])).toThrow(/Usage/);
     expect(() => installer.parseArgs(['upgrade'])).toThrow(/Usage/);
+  });
+});
+
+describe('isolated MongoDB backups', () => {
+  it('pins a root-owned release with a separate account and no home-directory inputs', async () => {
+    const release = '1792670000000-11111111-1111-4111-8111-111111111111';
+    await fs.writeFile(
+      path.join(root, 'deployment.json'),
+      JSON.stringify({
+        user: 'pleiades',
+        bots: ['tomori'],
+        mongodb: { prefix: '/legacy', configFile: '/legacy/config', probeEnvFile: '/legacy/.env' },
+        isolation: {},
+      }),
+    );
+    await expect(installer.readSettings(root)).rejects.toThrow('--release');
+    const settings = await installer.readSettings(root, { release });
+    expect(settings.user).toBe('pleiades-backup');
+    expect(settings.node).toBe(`/opt/pleiades-fleet/releases/${release}/runtime/bin/node`);
+    expect(settings.envFile).toBe('/etc/pleiades-backup/backup.env');
+    expect(settings.mongoPrefix).toBe('/opt/pleiades-mongo/runtime');
+    const unit = installer.renderUnits(settings)['pleiades-mongo-backup.service'];
+    expect(unit).toContain('SupplementaryGroups=pleiades');
+    expect(unit).toContain('ProtectHome=true');
+    expect(unit).not.toContain('/home/');
+    await expect(installer.readSettings(root, { release: '../escape' })).rejects.toThrow();
+    await expect(
+      installer.readSettings(root, { release, backupDir: '/tmp/backups' }),
+    ).rejects.toThrow();
   });
 });

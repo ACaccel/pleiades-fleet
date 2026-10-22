@@ -25,6 +25,17 @@ data was about 390 MB and took about 70 seconds.
 
 ## Install
 
+For [isolated deployment](../../docs/contributing/local-auto-deployment.md), use
+`npm run backup:install -- --release <installed-release-id>` after the offline
+cutover. It installs a dedicated `pleiades-backup` service with its own private
+`/etc/pleiades-backup/backup.env` and pins the root-owned script, dependencies and
+Node runtime from that release. The helper preserves the pinned release during
+retention. The MongoDB tool prefix is `/opt/pleiades-mongo/runtime`; bot settings
+and raw database files are inaccessible to this account. Backup configuration
+changes request administrator authentication and are outside automatic deployment.
+
+The following instructions cover legacy deployments.
+
 Run as the `deployment.json` user after the MongoDB service is deployed; system changes
 prompt for sudo. Re-run to change options.
 

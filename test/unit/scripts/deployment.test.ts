@@ -188,7 +188,7 @@ describe('systemd runtime and argument rendering', () => {
     const unit = botUnit(release('/srv/a b%$HOME'), 'nijika', true);
     expect(unit).toContain('ExecStart="/srv/a b%%$HOME/.conda/bin/node"');
     expect(unit).toContain('WorkingDirectory=/srv/a b%%$HOME/.deploy/releases/example');
-    expect(unit).toContain('Environment="CONDA_PREFIX=/srv/a b%%$HOME/.conda"');
+    expect(unit).toContain('Environment="PLEIADES_FONT_DIR=/srv/a b%%$HOME/.conda/fonts"');
     expect(unit).toContain('"/srv/a b%%$$HOME/.deploy/releases/example/src/bot/nijika/index.ts"');
     expect(unit).toContain('KillMode=control-group');
     expect(unit).toContain('RuntimeDirectory=pleiades-nijika');

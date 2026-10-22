@@ -1,0 +1,52 @@
+{
+  "repository": "ACaccel/pleiades-fleet",
+  "branch": "dev",
+  "source": "/home/acaccel/pleiades-fleet",
+  "checkout": "/home/acaccel/pleiades-fleet-release",
+  "stateDirectory": "/var/lib/pleiades-deployer",
+  "enabledBots": ["tomori", "nijika", "msg-archive", "konata"],
+  "operationalInputs": [
+    {
+      "source": "/var/lib/pleiades-deployer/inputs/deployment.json",
+      "destination": "deployment.json"
+    },
+    {
+      "source": "/var/lib/pleiades-deployer/inputs/tomori.env",
+      "destination": "src/bot/tomori/.env"
+    },
+    {
+      "source": "/var/lib/pleiades-deployer/inputs/tomori.json",
+      "destination": "src/bot/tomori/config.json"
+    },
+    {
+      "source": "/var/lib/pleiades-deployer/inputs/nijika.env",
+      "destination": "src/bot/nijika/.env"
+    },
+    {
+      "source": "/var/lib/pleiades-deployer/inputs/nijika.json",
+      "destination": "src/bot/nijika/config.json"
+    },
+    {
+      "source": "/var/lib/pleiades-deployer/inputs/msg-archive.env",
+      "destination": "src/bot/msg-archive/.env"
+    },
+    {
+      "source": "/var/lib/pleiades-deployer/inputs/msg-archive.json",
+      "destination": "src/bot/msg-archive/config.json"
+    },
+    {
+      "source": "/var/lib/pleiades-deployer/inputs/konata.env",
+      "destination": "src/bot/konata/.env"
+    },
+    {
+      "source": "/var/lib/pleiades-deployer/inputs/konata.json",
+      "destination": "src/bot/konata/config.json"
+    }
+  ],
+  "condaExecutable": "/home/acaccel/miniforge3/bin/conda",
+  "notification": {
+    "endpoint": "http://127.0.0.1:4001",
+    "route": "pleiades-deploy",
+    "keyFile": "/var/lib/pleiades-deployer/notify.key"
+  }
+}

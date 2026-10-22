@@ -1,5 +1,14 @@
 # Upgrade notes
 
+## Official Node.js runtime
+
+Follow [local setup](contributing/local-setup.md) to install the exact `.nvmrc`
+version independently of Conda. Fonts move to a separate `.conda-fonts` prefix;
+keep legacy runtimes while old units reference them. Existing traffic displays
+retain `UTC` for zero offset across the official runtime's Intl data changes.
+For dedicated accounts and `dev` automation, follow the
+[local deployment guide](contributing/local-auto-deployment.md).
+
 ## Project rename to Pleiades
 
 BotFleet is now Pleiades; the repository is `ACaccel/pleiades-fleet`. Every

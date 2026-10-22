@@ -27,7 +27,7 @@ export function botUnit(release: Release, bot: string, needsDatabase: boolean): 
       'Wants=network-online.target',
       'Wants=network-online.target mongodb-pleiades.service',
     );
-  body += `Environment=${quote(`PATH=${release.prefix}/bin:${release.directory}/node_modules/.bin:/usr/bin:/bin`)}\nEnvironment=${quote(`CONDA_PREFIX=${release.prefix}`)}\nEnvironment=NODE_ENV=production\nEnvironment=${quote(`TS_NODE_PROJECT=${release.directory}/tsconfig.json`)}\nEnvironment=${quote(`PLEIADES_READY_FILE=/run/${runtime}/ready.json`)}\nRuntimeDirectory=${runtime}\nRuntimeDirectoryMode=0700\nTimeoutStartSec=${release.config.readinessTimeoutSeconds + 15}\n`;
+  body += `Environment=${quote(`PATH=${release.prefix}/bin:${release.directory}/node_modules/.bin:/usr/bin:/bin`)}\nEnvironment=${quote(`PLEIADES_FONT_DIR=${release.fontDirectory ?? join(release.prefix, 'fonts')}`)}\nEnvironment=NODE_ENV=production\nEnvironment=${quote(`TS_NODE_PROJECT=${release.directory}/tsconfig.json`)}\nEnvironment=${quote(`PLEIADES_READY_FILE=/run/${runtime}/ready.json`)}\nRuntimeDirectory=${runtime}\nRuntimeDirectoryMode=0700\nTimeoutStartSec=${release.config.readinessTimeoutSeconds + 15}\n`;
   if (needsDatabase)
     body += `ExecStartPre=${command([...args, join(release.directory, 'scripts/mongo-ready.ts'), join(release.directory, 'src/bot', bot, '.env'), String(release.config.readinessTimeoutSeconds)])}\n`;
   body += `ExecStart=${command([...args, join(release.directory, 'src/bot', bot, 'index.ts')])}\n`;

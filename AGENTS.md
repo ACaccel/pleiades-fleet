@@ -22,7 +22,8 @@ in strict mode.
 
 ## Tech stack and versions
 
-- Runtime: Node.js `>=22.13.0` (`.nvmrc`: `22.13.0`) · npm `10.9.2`
+- Runtime: official Node.js `22.23.4` (authoritative pin: `.nvmrc`) · npm `10.9.2`
+  under `.runtime/`; Conda manages fonts only in `.conda-fonts/`.
 - Language: TypeScript `^5.6` (strict; `tsconfig.strict.json`)
 - Discord: discord.js `^14.21`
 - Persistence: Mongoose `^8.22` / MongoDB
@@ -36,8 +37,8 @@ in strict mode.
 ## Command cheat sheet
 
 ```
-Setup:      bash scripts/setup-env.sh (requires CONDA_EXE or conda on PATH)
-Install:    npm run install-lock       (uses project Conda runtime)
+Setup:      bash scripts/setup-env.sh (requires bootstrap Node, Conda, and tar/xz)
+Install:    npm run install-lock       (uses project official Node runtime)
 Dev:        npm run tomori | npm run nijika | npm run konata | npm run gopher | npm run msg-archive
             (register slash commands: npm run register = every configured bot;
              npm run register -t <bot> = one bot)
@@ -51,7 +52,10 @@ Services:   npm run deploy:prepare | npm run deploy | npm run undeploy
 Codegen:    npm run handlers:gen       (after adding or deleting a handler)
 ```
 
-Runtime and deployment operations: [`docs/contributing/deployment.md`](docs/contributing/deployment.md).
+Runtime setup and paths: [`docs/contributing/local-setup.md`](docs/contributing/local-setup.md).
+Manual deployment: [`docs/contributing/deployment.md`](docs/contributing/deployment.md).
+CI-gated `dev` automation and service-account isolation:
+[`docs/contributing/local-auto-deployment.md`](docs/contributing/local-auto-deployment.md).
 
 ## Path aliases (`tsconfig.json`)
 

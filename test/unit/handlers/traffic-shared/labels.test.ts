@@ -100,7 +100,8 @@ describe('labels', () => {
 
   it('captions the zone offset', () => {
     expect(zoneLabel(TZ, NOW)).toBe('UTC+8');
-    expect(zoneLabel('UTC', NOW)).toBe('UTC');
+    for (const zone of ['UTC', 'Etc/UTC', 'Etc/GMT']) expect(zoneLabel(zone, NOW)).toBe('UTC');
+    expect(zoneLabel('Asia/Kathmandu', NOW)).toBe('UTC+5:45');
   });
 
   it('measures the relative change and has none without a previous value', () => {

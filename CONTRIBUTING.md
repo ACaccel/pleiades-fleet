@@ -13,19 +13,23 @@ must preserve [opt-in delivery and optional-role semantics](docs/tomori-settings
 including settings rechecks before an update can mention a role.
 
 Start with [local setup](docs/contributing/local-setup.md) and the
-[architecture overview](docs/architecture.md).
+[architecture overview](docs/architecture.md). The setup guide owns official Node.js
+installation, the fonts-only Conda environment, and runtime selection; service
+isolation and CI-gated `dev` updates are covered by
+[local auto-deployment](docs/contributing/local-auto-deployment.md).
 
 Changes to `/gay` must preserve the [daily fun reading contract](docs/fun-readings.md),
 including optional archive inputs, permission-scoped snapshots and query budgets.
 
-| Task               | Guide                                                                                 |
-| ------------------ | ------------------------------------------------------------------------------------- |
-| Add a command      | [Handlers, autocomplete, and shared utilities](docs/contributing/adding-a-command.md) |
-| Add a plugin       | [Lifecycle and dependency injection](docs/contributing/adding-a-plugin.md)            |
-| Change persistence | [Models and repositories](docs/contributing/persisted-models.md)                      |
-| Deploy services    | [Runtime, systemd, cutover, and recovery](docs/contributing/deployment.md)            |
-| Operate bots       | [Smoke checks, database recovery, and migration](docs/contributing/operations.md)     |
-| Commit or release  | [Branching and changelog rules](docs/contributing/branching-and-releases.md)          |
+| Task                      | Guide                                                                                    |
+| ------------------------- | ---------------------------------------------------------------------------------------- |
+| Add a command             | [Handlers, autocomplete, and shared utilities](docs/contributing/adding-a-command.md)    |
+| Add a plugin              | [Lifecycle and dependency injection](docs/contributing/adding-a-plugin.md)               |
+| Change persistence        | [Models and repositories](docs/contributing/persisted-models.md)                         |
+| Automate `dev` deployment | [Isolated services and Konata notifications](docs/contributing/local-auto-deployment.md) |
+| Deploy services           | [Runtime, systemd, cutover, and recovery](docs/contributing/deployment.md)               |
+| Operate bots              | [Smoke checks, database recovery, and migration](docs/contributing/operations.md)        |
+| Commit or release         | [Branching and changelog rules](docs/contributing/branching-and-releases.md)             |
 
 Message archive changes must preserve [exclusive writer ownership, recovery and
 source privacy](docs/message-archive.md), including the separation between

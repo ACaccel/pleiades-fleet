@@ -17,6 +17,17 @@ export const deploymentSchema = z
       .regex(/^[a-z_][a-z0-9_-]*$/)
       .refine((value) => value !== 'root', 'Services must run as an ordinary user'),
     runtimePrefix: absolutePath.optional(),
+    isolation: z
+      .object({
+        applicationRoot: z.literal('/opt/pleiades-fleet'),
+        settingsRoot: z.literal('/etc/pleiades-fleet'),
+        stateRoot: z.literal('/var/lib/pleiades-fleet'),
+        logsRoot: z.literal('/var/log/pleiades-fleet'),
+        serviceUser: z.literal('pleiades'),
+        databaseUser: z.literal('pleiades-mongo'),
+      })
+      .strict()
+      .optional(),
     bots: z
       .array(botName)
       .min(1)
@@ -37,6 +48,7 @@ export interface Release {
   root: string;
   directory: string;
   prefix: string;
+  fontDirectory?: string;
   config: DeploymentConfig;
   units: Record<string, string>;
 }
@@ -133,6 +145,7 @@ export function validateRelease(input: unknown, root: string): Release {
       root: absolutePath,
       directory: absolutePath,
       prefix: absolutePath,
+      fontDirectory: absolutePath.optional(),
       config: deploymentSchema,
       units: z.record(z.string()),
     })

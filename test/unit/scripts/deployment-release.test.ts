@@ -7,6 +7,8 @@ import {
   readFileSync,
   readdirSync,
   rmSync,
+  readlinkSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -32,8 +34,21 @@ function file(relative: string, content = ''): string {
 }
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'pleiades-release-'));
+  vi.stubEnv('PLEIADES_CONDA_PREFIX', join(root, '.conda-fonts'));
+  file('.nvmrc', '22.23.4');
+  file(
+    '.conda/.pleiades-runtime.json',
+    JSON.stringify({
+      version: '22.23.4',
+      npmVersion: '10.9.2',
+      source: `https://nodejs.org/dist/v22.23.4/node-v22.23.4-linux-${process.arch}.tar.xz`,
+      sha256: 'a'.repeat(64),
+    }),
+  );
+  file('.conda/lib/node_modules/npm/bin/npm-cli.js');
   file('.conda/conda-meta/history');
   file('.conda/bin/node');
+  file('.conda-fonts/fonts/NotoSansCJKtc-VF.ttf', 'font fixture');
   file('src/bot/tomori/index.ts', 'export const revision = 1;');
   file(
     'src/bot/tomori/.env',
@@ -53,14 +68,18 @@ beforeEach(() => {
   };
   commands.run.mockReset();
   commands.run.mockImplementation((program: string, args: string[]) => {
-    if (program.endsWith('/node') && args[0] === '--version') return 'v22.13.0';
+    if (program.endsWith('/node') && args[0] === '--version') return 'v22.23.4';
+    if (program.endsWith('/node') && args[0]?.endsWith('npm-cli.js')) return '10.9.2';
     if (program.endsWith('/mongod')) return 'db version v7.0.34';
     if (program === 'git') return 'src/bot/tomori/.env\0src/bot/tomori/config.json\0';
     if (program === 'cp') cpSync(args[3]!, args[4]!, { recursive: true });
     return '';
   });
 });
-afterEach(() => rmSync(root, { recursive: true, force: true }));
+afterEach(() => {
+  vi.unstubAllEnvs();
+  rmSync(root, { recursive: true, force: true });
+});
 
 describe('release preparation', () => {
   it('prepares gopher with only Discord credentials and no database or HTTP port', () => {
@@ -116,7 +135,12 @@ describe('release preparation', () => {
     expect(readFileSync(join(release.directory, 'src/bot/tomori/config.json'), 'utf8')).toBe(
       '{"language":"en"}',
     );
-    expect(release.units['pleiades@tomori.service']).toContain(join(root, '.conda/bin/node'));
+    expect(release.units['pleiades@tomori.service']).toContain(
+      join(release.directory, 'runtime/bin/node'),
+    );
+    expect(readFileSync(join(release.directory, 'fonts/NotoSansCJKtc-VF.ttf'), 'utf8')).toBe(
+      'font fixture',
+    );
     expect(
       commands.run.mock.calls.some(([, args]) =>
         args.includes(
@@ -124,6 +148,23 @@ describe('release preparation', () => {
         ),
       ),
     ).toBe(true);
+  });
+  it('pins official runtime metadata and preserves relative npm links in snapshots', () => {
+    symlinkSync('../lib/node_modules/npm/bin/npm-cli.js', join(root, '.conda/bin/npm'));
+    const release = makeRelease(root, config, false);
+    expect(readlinkSync(join(release.prefix, 'bin/npm'))).toBe(
+      '../lib/node_modules/npm/bin/npm-cli.js',
+    );
+    file(
+      '.conda/.pleiades-runtime.json',
+      JSON.stringify({
+        version: '22.13.0',
+        npmVersion: '10.9.2',
+        source: 'https://nodejs.org/dist/v22.13.0/node-v22.13.0-linux-x64.tar.xz',
+        sha256: 'a'.repeat(64),
+      }),
+    );
+    expect(() => makeRelease(root, config, false)).toThrow('runtime metadata');
   });
   it('rejects missing settings and removes the incomplete release', () => {
     rmSync(join(root, 'src/bot/tomori/config.json'));
@@ -133,7 +174,7 @@ describe('release preparation', () => {
   it('rejects missing runtime and unsupported activation hooks', () => {
     expect(() => validatePrefix(join(root, 'missing'), 'node')).toThrow('Missing Conda runtime');
     file('.conda/etc/conda/activate.d/custom.sh', 'export REQUIRED_VALUE=1');
-    expect(() => makeRelease(root, config, false)).toThrow('activation hooks');
+    expect(() => validatePrefix(join(root, '.conda'), 'node')).toThrow('activation hooks');
     expect(existsSync(join(root, '.deploy/releases'))).toBe(false);
   });
   it('rejects invalid local archive configuration before copying dependencies or stopping services', () => {
@@ -157,7 +198,8 @@ describe('release preparation', () => {
   });
   it('removes the incomplete release when systemd validation fails', () => {
     commands.run.mockImplementation((program: string, args: string[]) => {
-      if (program.endsWith('/node') && args[0] === '--version') return 'v22.13.0';
+      if (program.endsWith('/node') && args[0] === '--version') return 'v22.23.4';
+      if (program.endsWith('/node') && args[0]?.endsWith('npm-cli.js')) return '10.9.2';
       if (program === 'systemd-analyze') throw new Error('Invalid unit');
       return '';
     });

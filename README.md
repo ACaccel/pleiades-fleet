@@ -5,7 +5,7 @@ Each bot runs as its own process and composes its features from a shared plugin
 system, with English and Traditional Chinese replies throughout.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D22.13-brightgreen)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/node-22.23.4-brightgreen)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue)](tsconfig.strict.json)
 
 ## Bots
@@ -103,10 +103,13 @@ Every bot shares the framework capabilities:
 
 ## Requirements
 
-- Conda or Miniforge. [`scripts/setup-env.sh`](scripts/setup-env.sh) installs
-  into the project's `.conda` the pinned Node.js 22.13 runtime and the CJK and colour
-  emoji fonts used by dashboard images; it then installs the locked npm dependencies
-  and verifies Canvas (see [local setup](docs/contributing/local-setup.md#prerequisites)).
+- Linux x64 or arm64, an existing Node.js with built-in `fetch` for bootstrap,
+  Conda / Miniforge, and `tar` with xz support.
+  [`scripts/setup-env.sh`](scripts/setup-env.sh) downloads the Node.js version in
+  [`.nvmrc`](.nvmrc) directly from the official site, verifies SHA-256, and installs
+  npm 10.9.2 under `.runtime/`. Conda supplies only CJK and colour emoji fonts in
+  `.conda-fonts/`. Setup installs locked npm dependencies and verifies actual font
+  rendering; see [local setup](docs/contributing/local-setup.md#prerequisites).
 - MongoDB for every bot except gopher. Integration tests use an in-memory server.
 - A Discord application per bot, plus provider API keys for the features you enable.
 
@@ -116,7 +119,7 @@ Every bot shares the framework capabilities:
 git clone https://github.com/ACaccel/pleiades-fleet.git
 cd pleiades-fleet
 CONDA_EXE="$HOME/miniforge3/bin/conda" bash scripts/setup-env.sh
-export PATH="$PWD/.conda/bin:$PATH"
+export PATH="$(dirname "$(node scripts/runtime.mjs path)"):$PATH"
 cp src/bot/nijika/config.example.json src/bot/nijika/config.json
 ```
 
@@ -137,6 +140,8 @@ npm run nijika
 [registering slash commands](docs/contributing/local-setup.md#registering-slash-commands)
 for test-guild registration and the opt-out flags. Registration is separate from
 [deployment](docs/contributing/deployment.md), which runs the bots as systemd services.
+For CI-gated automatic deployment of `dev` with isolated service accounts and
+Konata progress notifications, see [local auto-deployment](docs/contributing/local-auto-deployment.md).
 
 ## Commands
 
@@ -194,21 +199,22 @@ dependency injection, the request flow and message archive ownership.
 
 The [documentation index](docs/README.md) lists the guides under `docs/`.
 
-| Task                                       | Guide                                                   |
-| ------------------------------------------ | ------------------------------------------------------- |
-| Install and run locally                    | [Local setup](docs/contributing/local-setup.md)         |
-| Configure a bot                            | [Configuration](docs/configuration.md)                  |
-| Understand the system                      | [Architecture](docs/architecture.md)                    |
-| Operate the message archive and `/traffic` | [Message archive](docs/message-archive.md)              |
-| Moderate threads                           | [Thread moderation](docs/thread-moderation.md)          |
-| Deploy or update systemd services          | [Deployment](docs/contributing/deployment.md)           |
-| Diagnose database or connectivity problems | [Operations](docs/contributing/operations.md)           |
-| Upgrade an existing installation           | [Upgrade notes](docs/upgrading.md)                      |
-| Back up or restore the database            | [Database backups](tools/mongo-backup/README.md)        |
-| Move to another host                       | [Migration runbook](tools/migration/README.md)          |
-| Measure archive performance                | [Archive benchmarks](tools/archive-benchmark/README.md) |
-| Add a command, plugin or persisted model   | [Contributing](CONTRIBUTING.md)                         |
-| Review releases                            | [Changelog](CHANGELOG.md)                               |
+| Task                                       | Guide                                                               |
+| ------------------------------------------ | ------------------------------------------------------------------- |
+| Install and run locally                    | [Local setup](docs/contributing/local-setup.md)                     |
+| Configure a bot                            | [Configuration](docs/configuration.md)                              |
+| Understand the system                      | [Architecture](docs/architecture.md)                                |
+| Operate the message archive and `/traffic` | [Message archive](docs/message-archive.md)                          |
+| Moderate threads                           | [Thread moderation](docs/thread-moderation.md)                      |
+| Automatically deploy `dev`                 | [Local auto-deployment](docs/contributing/local-auto-deployment.md) |
+| Deploy or update systemd services          | [Deployment](docs/contributing/deployment.md)                       |
+| Diagnose database or connectivity problems | [Operations](docs/contributing/operations.md)                       |
+| Upgrade an existing installation           | [Upgrade notes](docs/upgrading.md)                                  |
+| Back up or restore the database            | [Database backups](tools/mongo-backup/README.md)                    |
+| Move to another host                       | [Migration runbook](tools/migration/README.md)                      |
+| Measure archive performance                | [Archive benchmarks](tools/archive-benchmark/README.md)             |
+| Add a command, plugin or persisted model   | [Contributing](CONTRIBUTING.md)                                     |
+| Review releases                            | [Changelog](CHANGELOG.md)                                           |
 
 ## Contributing
 

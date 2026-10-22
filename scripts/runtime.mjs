@@ -1,10 +1,14 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
+import { runtimeDirectory, runtimeVersion } from './setup-node.mjs';
 import { delimiter, dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const prefix = process.env.PLEIADES_CONDA_PREFIX || join(root, '.conda');
+const prefix = await runtimeDirectory(root);
+const expectedVersion = await runtimeVersion(root);
+const fontPrefix = process.env.PLEIADES_CONDA_PREFIX || join(root, '.conda-fonts');
+const fontDirectory = process.env.PLEIADES_FONT_DIR || join(fontPrefix, 'fonts');
 const node = join(prefix, 'bin', 'node');
 const npm = join(prefix, 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js');
 
@@ -18,39 +22,45 @@ function runtimeEnvironment() {
     PATH: [join(prefix, 'bin'), join(root, 'node_modules', '.bin'), environment.PATH || ''].join(
       delimiter,
     ),
-    CONDA_PREFIX: prefix,
+    CONDA_PREFIX: fontPrefix,
+    PLEIADES_NODE_PREFIX: prefix,
+    PLEIADES_CONDA_PREFIX: fontPrefix,
+    PLEIADES_FONT_DIR: fontDirectory,
     npm_node_execpath: node,
     npm_execpath: npm,
   };
 }
 
 function requireRuntime() {
-  if (!isAbsolute(prefix)) throw new Error('PLEIADES_CONDA_PREFIX must be an absolute path.');
-  if (!existsSync(join(prefix, 'conda-meta', 'history')) || !existsSync(node) || !existsSync(npm)) {
-    throw new Error('Project Conda runtime is missing. Run bash scripts/setup-env.sh first.');
+  if (!isAbsolute(fontPrefix)) throw new Error('PLEIADES_CONDA_PREFIX must be an absolute path.');
+  if (!isAbsolute(fontDirectory)) throw new Error('PLEIADES_FONT_DIR must be an absolute path.');
+  if (!existsSync(node) || !existsSync(npm)) {
+    throw new Error('Project Node.js runtime is missing. Run bash scripts/setup-env.sh first.');
   }
-  // The application definition uses only Node. Refuse silently skipping hooks if operators add packages.
-  const hooks = join(prefix, 'etc', 'conda', 'activate.d');
+  // Font assets need no activation hooks; refuse silently skipping future hooks.
+  const hooks = join(fontPrefix, 'etc', 'conda', 'activate.d');
   if (existsSync(hooks) && readdirSync(hooks).some((name) => name.endsWith('.sh'))) {
     throw new Error(
       'Project runtime has activation hooks; review them before using this launcher.',
     );
   }
-  const version = spawnSync(node, ['--version'], { encoding: 'utf8', env: runtimeEnvironment() });
-  const match = /^v22\.(\d+)\.\d+\s*$/.exec(version.stdout || '');
+  const version = spawnSync(node, ['--version'], {
+    encoding: 'utf8',
+    env: runtimeEnvironment(),
+  });
+  const matchesVersion = version.stdout?.trim() === `v${expectedVersion}`;
   const manager = spawnSync(node, [npm, '--version'], {
     encoding: 'utf8',
     env: runtimeEnvironment(),
   });
   if (
     version.status !== 0 ||
-    !match ||
-    Number(match[1]) < 13 ||
+    !matchesVersion ||
     manager.status !== 0 ||
     manager.stdout.trim() !== '10.9.2'
   ) {
     throw new Error(
-      'Project runtime requires Node 22.13+ within 22 and npm 10.9.2. Run bash scripts/setup-env.sh.',
+      `Project runtime requires Node ${expectedVersion} and npm 10.9.2. Run bash scripts/setup-env.sh.`,
     );
   }
 }

@@ -1,0 +1,18 @@
+{
+  "user": "pleiades",
+  "bots": ["tomori", "nijika", "msg-archive", "konata"],
+  "readinessTimeoutSeconds": 120,
+  "isolation": {
+    "applicationRoot": "/opt/pleiades-fleet",
+    "settingsRoot": "/etc/pleiades-fleet",
+    "stateRoot": "/var/lib/pleiades-fleet",
+    "logsRoot": "/var/log/pleiades-fleet",
+    "serviceUser": "pleiades",
+    "databaseUser": "pleiades-mongo"
+  },
+  "mongodb": {
+    "prefix": "/opt/pleiades-mongo/runtime",
+    "configFile": "/etc/pleiades-mongo/mongod.conf",
+    "probeEnvFile": "/etc/pleiades-fleet/bots/nijika/.env"
+  }
+}

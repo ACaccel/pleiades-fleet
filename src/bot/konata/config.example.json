@@ -39,6 +39,10 @@
     "card-together-deploy": {
       "guildId": "YOUR_GUILD_ID",
       "channelId": "YOUR_NOTIFICATION_CHANNEL_ID"
+    },
+    "pleiades-deploy": {
+      "guildId": "YOUR_GUILD_ID",
+      "channelId": "YOUR_NOTIFICATION_CHANNEL_ID"
     }
   }
 }

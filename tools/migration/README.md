@@ -3,25 +3,29 @@
 Git clone supplies the application code. This tool moves **all application
 MongoDB databases** and **gitignored files** such as `.env`, `config.json`,
 `logs/`, `data/`, and tool backups. It excludes `node_modules`, build/coverage
-output, `.plan`, `.conda`, `.deploy`, `deployment.json`, and migration settings/state. MongoDB `admin`, `config`, and
+output, `.plan`, `.conda`, `.runtime`, `.conda-fonts`, `.deploy`, `deployment.json`,
+and migration settings/state. MongoDB `admin`, `config`, and
 `local` internals are excluded; the shared application user is recreated.
 
 ## Configuration: source and split targets
 
 Copy `config.example.json` to `config.json` beside this README:
 
-| Field                 | Meaning                                                                                                                                             |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `environment`         | Application conda environment path, e.g.`/home/guest/miniforge3/envs/pleiades`. If omitted, use the active conda environment.                       |
-| `databaseEnvironment` | MongoDB runtime prefix containing `mongod`, `mongodump`, `mongorestore`, and `mongosh`. Defaults to `environment` for combined legacy environments. |
-| `mongoEnv`            | Bot`.env` providing `MONGO_URI`, relative to the Git checkout. Defaults to `src/bot/tomori/.env`. No password belongs in this config.               |
-| `backupDir`           | Parent directory for automatically named backups, outside the repository. Defaults to`pleiades-backups` beside the checkout.                        |
+| Field                 | Meaning                                                                                                                                                                         |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `environment`         | Official application Node.js prefix containing `bin/node` and `.pleiades-runtime.json`, or a legacy Conda environment. Defaults to `PLEIADES_NODE_PREFIX`, then `CONDA_PREFIX`. |
+| `databaseEnvironment` | MongoDB runtime prefix containing `mongod`, `mongodump`, `mongorestore`, and `mongosh`. Defaults to `environment` for combined legacy environments.                             |
+| `mongoEnv`            | Bot`.env` providing `MONGO_URI`, relative to the Git checkout. Defaults to `src/bot/tomori/.env`. No password belongs in this config.                                           |
+| `backupDir`           | Parent directory for automatically named backups, outside the repository. Defaults to`pleiades-backups` beside the checkout.                                                    |
 
 Paths are literal: use absolute paths for both environments and `backupDir`, not `~`.
 Each `mongosh` call runs under a temporary profile with telemetry off, so it neither
 reads nor writes the operator's `~/.mongodb`.
-The application environment may be `<checkout>/.conda`; the database environment
+The application environment may be `<checkout>/.runtime/<versioned-runtime>` or
+the legacy `<checkout>/.conda`; the database environment
 must remain outside the checkout unless it is the same legacy combined environment.
+An official application prefix requires an explicit `databaseEnvironment`; a fonts-only
+Conda environment cannot provide MongoDB tools.
 Binaries must exist in their configured prefix; no system/PATH fallback is used.
 No target config is needed for an active combined environment. A split target
 must pass `--config /absolute/target-config.json` on restore and verify.
@@ -79,11 +83,18 @@ Omit `--apply` to preview. The Miniforge release is pinned in
 `bootstrap-runtime.conf`; its installer and SHA256 are fetched from that fixed
 [official release](https://github.com/conda-forge/miniforge/releases). Database,
 Node, npm and mongosh versions come from the backup. No manual version list is
-needed. Backups exported before the npm transition retain their bundled Yarn-based
+needed. Conda installs MongoDB, database tools, Python, fonts and native dependencies.
+Node.js comes directly from the matching `nodejs.org` HTTPS release and is checked
+against its `SHASUMS256.txt` before extraction. The private versioned installation
+lives under `<environment>/.node-runtime`; `bin/node`, `bin/npm` and `bin/npx` link
+to it. This avoids waiting for conda-forge to publish a security release.
+Backups exported before the npm transition retain their bundled Yarn-based
 recovery tool; use that bundled tool with the recorded source commit. Do not mix
 its runtime inventory with a newer bootstrap. Use `--prefix /absolute/conda` if
 conda belongs elsewhere; activate that installation afterward. Reusing an
-environment can update its packages.
+environment created by this bootstrap can update its packages. Legacy environments
+containing Conda-managed or manually installed Node.js are rejected before any
+Conda change; select a fresh recovery environment and retain the old one for rollback.
 
 ## 3. Restore and run
 
@@ -105,8 +116,12 @@ application credentials and `.env` contents are preserved.
 
 MongoDB remains running; bots are not started. Update webhook/API routing if used.
 No slash-command registration is needed. This recovery tool does not install
-systemd services. For temporary combined-environment operation, set
-`PLEIADES_CONDA_PREFIX="$CONDA_PREFIX"` before bot commands only if that runtime satisfies the launcher version checks and has no activation hooks. Otherwise complete the split setup below before starting bots.
+systemd services. For temporary operation with the current launcher, select the
+official prefix containing the resolved `bin/node` as `PLEIADES_NODE_PREFIX`, set
+`PLEIADES_CONDA_PREFIX="$CONDA_PREFIX"` and `PLEIADES_FONT_DIR="$CONDA_PREFIX/fonts"`
+for bot commands, and verify the checkout's pinned Node/npm versions. Historical
+source commits retain their own launcher contract. Otherwise complete the split
+setup below before starting bots.
 For persistent deployment, complete the split-runtime transition below and follow
 the [operations guide](../../docs/contributing/operations.md). To recheck before bot startup:
 
@@ -118,17 +133,18 @@ bash ~/pleiades-backup/tool/migration.sh verify ~/pleiades-backup
 
 Export supports the split layout directly with the example configuration. Backup
 `runtime.conf` records application and database versions independently; neither
-Conda binaries nor machine-specific systemd deployment state are copied.
+runtime binaries nor machine-specific systemd deployment state are copied.
 
 The portable bootstrap intentionally retains its combined-environment interface.
 It can recover a split source using the same steps above: bootstrap a dedicated
-combined environment from the backup's exact version inventory, clone the source
+dedicated recovery environment from the backup's exact version inventory, clone the source
 commit, restore, then verify before starting bots. Both combined and split
 export/restore paths are covered by the isolated MongoDB drill.
 
 To transition the recovered host to the normal split layout:
 
-1. Run `npm run setup` to build the checkout's `.conda` application runtime and locked
+1. Unset temporary runtime-prefix overrides, then run `npm run setup` to build the
+   checkout's official `.runtime` Node.js prefix, `.conda-fonts`, and locked
    native dependencies. Keep the recovery environment available for rollback.
 2. Run `bash scripts/setup-mongo.sh /absolute/mongodb-pleiades/.conda` to prepare
    the independent database runtime. Confirm its versions match `runtime.conf`;

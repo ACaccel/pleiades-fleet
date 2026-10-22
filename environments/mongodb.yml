@@ -4,4 +4,3 @@ channels:
 dependencies:
   - mongodb=7.0.34
   - mongo-tools=100.13.0
-  - nodejs=22.13.0

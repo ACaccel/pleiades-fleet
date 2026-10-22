@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 type Config = {
   repo: string;
@@ -50,6 +50,7 @@ beforeEach(async () => {
   ]);
 });
 afterEach(async () => {
+  vi.unstubAllEnvs();
   await fs.rm(root, { recursive: true, force: true });
 });
 
@@ -107,6 +108,72 @@ async function backup(change: Record<string, unknown> = {}): Promise<string> {
 }
 
 describe('runtime configuration', () => {
+  async function officialRuntime(
+    prefix = path.join(repo, '.runtime/node-v22.23.4-linux-x64'),
+  ): Promise<string> {
+    await fs.mkdir(path.join(prefix, 'bin'), { recursive: true });
+    await fs.writeFile(path.join(prefix, 'bin/node'), 'synthetic runtime', { mode: 0o700 });
+    await fs.writeFile(
+      path.join(prefix, '.pleiades-runtime.json'),
+      JSON.stringify({
+        version: '22.23.4',
+        npmVersion: '10.9.2',
+        sha256: 'a'.repeat(64),
+        source: 'https://nodejs.org/dist/v22.23.4/node-v22.23.4-linux-x64.tar.xz',
+      }),
+    );
+    return prefix;
+  }
+
+  it('accepts the official project application runtime with a separate Conda database prefix', async () => {
+    const app = await officialRuntime();
+    const result = await loadConfig(
+      repo,
+      await config({ environment: app, databaseEnvironment: environment }),
+    );
+    expect(result.environment).toBe(app);
+    expect(result.databaseEnvironment).toBe(environment);
+    await expect(loadConfig(repo, await config({ environment: app }))).rejects.toThrow(
+      'configure it separately',
+    );
+  });
+
+  it('prefers PLEIADES_NODE_PREFIX over an active fonts-only Conda prefix', async () => {
+    const app = await officialRuntime();
+    const fonts = path.join(repo, '.conda-fonts');
+    await fs.mkdir(path.join(fonts, 'conda-meta'), { recursive: true });
+    await fs.writeFile(path.join(fonts, 'conda-meta/history'), '');
+    vi.stubEnv('PLEIADES_NODE_PREFIX', app);
+    vi.stubEnv('CONDA_PREFIX', fonts);
+    const result = await loadConfig(repo, await config({ databaseEnvironment: environment }));
+    expect(result.environment).toBe(app);
+  });
+
+  it('rejects unmanaged official prefixes, mismatched metadata and unsafe runtime overlap', async () => {
+    const app = await officialRuntime();
+    const marker = path.join(app, '.pleiades-runtime.json');
+    await fs.rm(marker);
+    await expect(
+      loadConfig(repo, await config({ environment: app, databaseEnvironment: environment })),
+    ).rejects.toThrow('verified official');
+    await fs.writeFile(
+      marker,
+      JSON.stringify({
+        version: '22.23.4',
+        npmVersion: '10.9.2',
+        sha256: 'a'.repeat(64),
+        source: 'https://untrusted.invalid/node.tar.xz',
+      }),
+    );
+    await expect(
+      loadConfig(repo, await config({ environment: app, databaseEnvironment: environment })),
+    ).rejects.toThrow('verified official');
+    const overlap = await officialRuntime(path.join(repo, 'unexpected-runtime'));
+    await expect(
+      loadConfig(repo, await config({ environment: overlap, databaseEnvironment: environment })),
+    ).rejects.toThrow('overlap');
+  });
+
   it('uses the active environment and derives backup/state paths', async () => {
     const result = await loadConfig(repo, undefined, environment);
     expect(result.environment).toBe(environment);

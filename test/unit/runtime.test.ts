@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -10,7 +10,13 @@ let prefix: string;
 function run(...args: string[]) {
   return spawnSync(process.execPath, [launcher, ...args], {
     encoding: 'utf8',
-    env: { ...process.env, PLEIADES_CONDA_PREFIX: prefix, PATH: '/usr/bin:/bin' },
+    env: {
+      ...process.env,
+      PLEIADES_NODE_PREFIX: prefix,
+      PLEIADES_CONDA_PREFIX: prefix,
+      PLEIADES_FONT_DIR: undefined,
+      PATH: '/usr/bin:/bin',
+    },
   });
 }
 
@@ -20,7 +26,13 @@ beforeEach(() => {
   mkdirSync(join(prefix, 'conda-meta'));
   mkdirSync(join(prefix, 'lib/node_modules/npm/bin'), { recursive: true });
   writeFileSync(join(prefix, 'conda-meta/history'), 'fixture');
-  symlinkSync(process.execPath, join(prefix, 'bin/node'));
+  writeFileSync(
+    join(prefix, 'bin/node'),
+    `#!/bin/sh
+if [ "$1" = "--version" ]; then echo v22.23.4; else exec '${process.execPath.replace(/'/g, "'\\''")}' "$@"; fi
+`,
+    { mode: 0o755 },
+  );
   writeFileSync(join(prefix, 'lib/node_modules/npm/bin/npm-cli.js'), "console.log('10.9.2');");
 });
 afterEach(() => rmSync(prefix, { recursive: true, force: true }));
@@ -31,13 +43,14 @@ describe('project runtime launcher', () => {
       'exec',
       'node',
       '-e',
-      'console.log(JSON.stringify([process.env.CONDA_PREFIX,process.env.PATH.split(":")[0],process.env.npm_node_execpath]))',
+      'console.log(JSON.stringify([process.env.CONDA_PREFIX,process.env.PATH.split(":")[0],process.env.npm_node_execpath,process.env.PLEIADES_FONT_DIR]))',
     );
     expect(result.status).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual([
       prefix,
       join(prefix, 'bin'),
       join(prefix, 'bin/node'),
+      join(prefix, 'fonts'),
     ]);
     expect(run('path').stdout.trim()).toBe(join(prefix, 'bin/node'));
   });
@@ -66,7 +79,7 @@ else console.log(JSON.stringify({ args: process.argv.slice(2), manager: process.
   });
 
   it('refuses missing runtimes without using system Node', () => {
-    rmSync(join(prefix, 'conda-meta/history'));
+    rmSync(join(prefix, 'bin/node'));
     const result = run('exec', 'node', '-e', 'process.exit(0)');
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('runtime is missing');
@@ -74,11 +87,45 @@ else console.log(JSON.stringify({ args: process.argv.slice(2), manager: process.
 
   it('refuses unsupported Node versions and unexpected activation hooks', () => {
     rmSync(join(prefix, 'bin/node'));
-    writeFileSync(join(prefix, 'bin/node'), '#!/bin/sh\necho v18.20.0\n', { mode: 0o755 });
-    expect(run('path').stderr).toContain('requires Node 22.13+');
+    writeFileSync(join(prefix, 'bin/node'), '#!/bin/sh\necho v18.20.0\n', {
+      mode: 0o755,
+    });
+    expect(run('path').stderr).toContain('requires Node 22.23.4');
     mkdirSync(join(prefix, 'etc/conda/activate.d'), { recursive: true });
     writeFileSync(join(prefix, 'etc/conda/activate.d/example.sh'), 'export EXAMPLE=1');
     expect(run('path').stderr).toContain('activation hooks');
+  });
+
+  it('rejects relative prefixes and clears inherited Node lookup overrides', () => {
+    const invalid = spawnSync(process.execPath, [launcher, 'path'], {
+      encoding: 'utf8',
+      env: { ...process.env, PLEIADES_NODE_PREFIX: 'relative' },
+    });
+    expect(invalid.status).toBe(1);
+    expect(invalid.stderr).toContain('must be absolute');
+    const clean = spawnSync(
+      process.execPath,
+      [
+        launcher,
+        'exec',
+        'node',
+        '-e',
+        'console.log(JSON.stringify([process.env.NODE_PATH, process.env.npm_config_prefix, process.env.NPM_CONFIG_PREFIX]))',
+      ],
+      {
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          PLEIADES_NODE_PREFIX: prefix,
+          PLEIADES_CONDA_PREFIX: prefix,
+          NODE_PATH: '/unrelated/modules',
+          npm_config_prefix: '/unrelated/npm',
+          NPM_CONFIG_PREFIX: '/unrelated/npm',
+        },
+      },
+    );
+    expect(clean.status).toBe(0);
+    expect(JSON.parse(clean.stdout)).toEqual([null, null, null]);
   });
 
   it('preserves command exit status and rejects arbitrary external executables', () => {
@@ -92,7 +139,11 @@ else console.log(JSON.stringify({ args: process.argv.slice(2), manager: process.
     const stopped = join(prefix, 'stopped');
     const script = `const fs=require('node:fs');process.on('SIGTERM',()=>{fs.writeFileSync(${JSON.stringify(stopped)},'stopped');process.exit(0)});fs.writeFileSync(${JSON.stringify(ready)},'ready');setInterval(()=>{},1000);`;
     const child = spawn(process.execPath, [launcher, 'exec', 'node', '-e', script], {
-      env: { ...process.env, PLEIADES_CONDA_PREFIX: prefix },
+      env: {
+        ...process.env,
+        PLEIADES_NODE_PREFIX: prefix,
+        PLEIADES_CONDA_PREFIX: prefix,
+      },
       stdio: 'ignore',
     });
     const closed = new Promise((resolveClose) => child.once('close', resolveClose));

@@ -99,6 +99,11 @@ const optionalPortSchema = z.preprocess(
  * test at once.
  */
 const envShape = {
+  /** Absolute directory containing the deployment-owned CJK and emoji fonts. */
+  PLEIADES_FONT_DIR: z
+    .string()
+    .refine(path.isAbsolute, 'PLEIADES_FONT_DIR must be absolute')
+    .optional(),
   /** Deployment-owned marker path; unset for ordinary interactive startup. */
   PLEIADES_READY_FILE: z
     .string()
@@ -378,3 +383,17 @@ const buildJsonLine = (
     time: Date.now(),
     ...data,
   });
+
+/** Resolve font assets independently of Node, retaining the legacy Conda layout as fallback. */
+export const readCanvasFontDirectory = (
+  source: NodeJS.ProcessEnv = process.env,
+  executable: string = process.execPath,
+): string => {
+  const directory =
+    source.PLEIADES_FONT_DIR ??
+    (source.PLEIADES_CONDA_PREFIX
+      ? path.join(source.PLEIADES_CONDA_PREFIX, 'fonts')
+      : path.resolve(path.dirname(executable), '..', 'fonts'));
+  if (!path.isAbsolute(directory)) throw new Error('PLEIADES_FONT_DIR must be absolute.');
+  return directory;
+};

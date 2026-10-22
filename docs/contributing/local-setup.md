@@ -4,7 +4,10 @@ Part of the [contributing guide](../../CONTRIBUTING.md).
 
 ## Prerequisites
 
-Install Conda / Miniforge and, for persistent bots, a development MongoDB instance.
+Use Linux x64 or arm64. Bootstrap needs an existing Node.js with built-in `fetch`
+(Node.js 18 or later), Conda / Miniforge, and `tar` with xz support. The existing
+Node only runs setup; normal commands select the exact official runtime pinned in
+[`.nvmrc`](../../.nvmrc). Persistent bots also need a development MongoDB instance.
 Integration tests use `mongodb-memory-server`, with its data on `/dev/shm` when
 that tmpfs is writable (Linux) and in the default temporary directory otherwise.
 
@@ -12,18 +15,34 @@ that tmpfs is writable (Linux) and in the default temporary directory otherwise.
 git clone git@github.com:ACaccel/pleiades-fleet.git
 cd pleiades-fleet
 CONDA_EXE="$HOME/miniforge3/bin/conda" bash scripts/setup-env.sh
-export PATH="$PWD/.conda/bin:$PATH"
+export PATH="$(dirname "$(node scripts/runtime.mjs path)"):$PATH"
 ```
 
-Setup installs the pinned runtime and fonts from
-[`environment.yml`](../../environment.yml), locked dependencies, and verifies Canvas. Commands use `.conda`; activation is optional.
+Setup downloads the official Node.js archive and `SHASUMS256.txt` over HTTPS from
+`nodejs.org/dist`, verifies SHA-256 before extraction, installs npm 10.9.2, and
+atomically publishes `.runtime/node-v<version>-linux-<x64|arm64>/`. It then runs
+`npm ci` and verifies distinct CJK glyphs and a colour emoji through Canvas.
+Existing versioned Node runtimes are reused after validation.
+
+Conda installs only the font packages in [`environment.yml`](../../environment.yml)
+into `.conda-fonts/`. Conda activation is unnecessary. Project npm scripts use
+[`runtime.mjs`](../../scripts/runtime.mjs) to select the pinned Node and npm,
+set child-process paths, and forward termination signals. Exporting the path above
+also selects that npm for interactive commands; it does not change systemd services.
+
+For custom paths, export an absolute `PLEIADES_CONDA_PREFIX` before setup to choose
+a separate fonts-only environment. `PLEIADES_NODE_PREFIX` can select an existing
+Node prefix when running commands; unset it before setup, which always installs
+under `.runtime/`. `PLEIADES_FONT_DIR` selects an absolute font directory for the
+application; the launcher defaults it to `<PLEIADES_CONDA_PREFIX>/fonts`.
+See [configuration](../configuration.md#runtime-launcher-settings).
 Vitest 3 uses the scoped Tinypool 2.1.2 override in `package.json` to include its
 prototype-pollution fixes. Tinypool 2 requires Node 20 or later; the project uses
 Node 22. Keep the override until the selected Vitest release depends on a patched
 pool, and run the full coverage suite after changing it.
 
 Canvas fonts come from conda-forge packages pinned in `environment.yml`; no font file
-is committed to the repository. Both are OFL-1.1 and land in `.conda/fonts/`:
+is committed to the repository. Both are OFL-1.1 and land in `.conda-fonts/fonts/`:
 
 | Package                     | File used                           | Role                                                                                                                                                                       |
 | --------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -36,7 +55,15 @@ cairo 1.16, which predates COLRv1 colour fonts, so keep a CBDT `NotoColorEmoji.t
 build when upgrading the package.
 
 Use `npm run install-lock` to reinstall dependencies or `npm run setup` to update
-the environment. Runtime changes require undeploying [managed services](deployment.md).
+the local environment. Setup refuses managed or unfinished deployments and refuses
+to prune a legacy Conda environment containing `bin/node`. Leave the old `.conda/`
+untouched until its releases have been retired; use a fresh fonts-only prefix.
+The [auto-deployment controller](local-auto-deployment.md) builds in a separate
+checkout and retains each release's runtime for rollback. Follow the
+[deployment guide](deployment.md) for a manual runtime cutover.
+
+The migration tools retain their separate, backup-owned runtime contract; this
+application setup does not rewrite runtime versions stored in historical backups.
 
 ## Local Git hooks
 

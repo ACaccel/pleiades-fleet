@@ -21,3 +21,6 @@ tools/msg_backup/tmp/
 /.conda/
 /.deploy/
 /deployment.json
+
+/.runtime/
+/.conda-fonts/

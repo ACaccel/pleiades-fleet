@@ -432,12 +432,29 @@ only, privately.
 
 ## Deployment boundary
 
-The launcher selects the project Conda runtime. Independent systemd units use release
-snapshots with shared configuration, logs and data. A transaction journal supports
-rollback; MongoDB has a separate lifecycle. A separate systemd timer takes daily online
-database dumps. See [deployment](contributing/deployment.md), the
+The launcher selects the exact official Node.js version in `.nvmrc`, installed with
+npm 10.9.2 under `.runtime/` after HTTPS download and SHA-256 verification. Conda
+manages font assets separately in `.conda-fonts/`; `PLEIADES_FONT_DIR` lets releases
+select fonts independently of the Node executable. See
+[local setup](contributing/local-setup.md#prerequisites) for installation and paths.
+
+Independent systemd units run immutable release snapshots with their own Node and
+fonts, external configuration and persistent logs/data. Deployment and runtime
+accounts have separate duties; running bots do not need repository credentials or
+permission to update installed code. A transaction journal supports rollback;
+MongoDB retains a separate lifecycle and a timer takes daily online database dumps.
+
+The [local auto-deployment controller](contributing/local-auto-deployment.md)
+tracks `dev`, gates the exact commit on CI, and prepares a separate clean checkout.
+It selects affected enabled bots, preserves installation recovery state, and sends
+one editable Konata notification per commit listing the deployment targets.
+Notification delivery is retried independently of deployment, including while
+Konata itself restarts. Database cutover remains explicit.
+
+See [manual deployment](contributing/deployment.md), the
 [backup guide](../tools/mongo-backup/README.md) and the
-[migration runbook](../tools/migration/README.md).
+[migration runbook](../tools/migration/README.md). Historical migration backups keep
+their own recorded runtime versions; application updates do not rewrite them.
 
 ## Message archive ownership
 

@@ -10,9 +10,9 @@ export const TIMER = 'pleiades-mongo-backup.timer';
 const UNIT_DIR = '/etc/systemd/system';
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const usage =
-  'Usage: install.mjs install [--dir /absolute/dir] [--keep N] | uninstall | render OUTPUT_DIR [--dir ...] [--keep N]';
+  'Usage: install.mjs install [--dir /absolute/dir] [--keep N] [--release ID] | uninstall | render OUTPUT_DIR [--dir ...] [--keep N]';
 
-/** @typedef {{root:string,user:string,node:string,mongoPrefix:string,envFile:string,backupDir:string,keep:number}} Settings */
+/** @typedef {{root:string,user:string,node:string,mongoPrefix:string,envFile:string,backupDir:string,keep:number,isolated?:boolean,ownerRoot?:string}} Settings */
 
 /** @param {string} root @returns {string} */
 export const ownerMarker = (root) => `# Managed by Pleiades: ${root}\n`;
@@ -32,7 +32,7 @@ function backupDirectory(value) {
   return value;
 }
 
-/** @param {string} root @param {{backupDir?:string,keep?:string}} [overrides] @returns {Promise<Settings>} */
+/** @param {string} root @param {{backupDir?:string,keep?:string,release?:string}} [overrides] @returns {Promise<Settings>} */
 export async function readSettings(root, overrides = {}) {
   let config;
   try {
@@ -49,6 +49,31 @@ export async function readSettings(root, overrides = {}) {
   if (!config.mongodb) throw new Error('deployment.json mongodb is required for backups.');
   const keep = overrides.keep ?? '3';
   if (!/^[1-9]\d*$/.test(keep)) throw new Error('--keep must be a positive integer.');
+  if (config.isolation) {
+    const release = overrides.release
+      ? `/opt/pleiades-fleet/releases/${overrides.release}`
+      : undefined;
+    if (
+      typeof release !== 'string' ||
+      !/^\/opt\/pleiades-fleet\/releases\/\d{13}-[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/.test(
+        release,
+      )
+    )
+      throw new Error('Pass --release <installed-release-id> before configuring isolated backups.');
+    if (overrides.backupDir && overrides.backupDir !== '/var/backups/pleiades')
+      throw new Error('Isolated backups use /var/backups/pleiades.');
+    return {
+      root: release,
+      ownerRoot: '/opt/pleiades-fleet',
+      user: 'pleiades-backup',
+      node: path.join(release, 'runtime/bin/node'),
+      mongoPrefix: '/opt/pleiades-mongo/runtime',
+      envFile: '/etc/pleiades-backup/backup.env',
+      backupDir: '/var/backups/pleiades',
+      keep: Number(keep),
+      isolated: true,
+    };
+  }
   const runtime = config.runtimePrefix
     ? absolute(config.runtimePrefix, 'runtimePrefix')
     : path.join(root, '.conda');
@@ -87,14 +112,14 @@ export function renderUnits(settings) {
     '--keep',
     String(settings.keep),
   ];
-  const service = `${ownerMarker(settings.root)}[Unit]
+  const service = `${ownerMarker(settings.ownerRoot ?? settings.root)}[Unit]
 Description=Pleiades MongoDB backup
 After=mongodb-pleiades.service
 
 [Service]
 Type=oneshot
 User=${settings.user}
-UMask=0077
+${settings.isolated ? 'Group=pleiades-backup\nSupplementaryGroups=pleiades\n' : ''}UMask=0077
 ExecStart=${command.map(quote).join(' ')}
 TimeoutStartSec=2h
 Nice=10
@@ -103,7 +128,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 PrivateDevices=true
 ProtectSystem=strict
-ProtectHome=read-only
+ProtectHome=${settings.isolated ? 'true' : 'read-only'}
 ReadWritePaths=${settings.backupDir}
 ProtectKernelTunables=true
 ProtectKernelModules=true
@@ -116,7 +141,7 @@ StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=pleiades-mongo-backup
 `;
-  const timer = `${ownerMarker(settings.root)}[Unit]
+  const timer = `${ownerMarker(settings.ownerRoot ?? settings.root)}[Unit]
 Description=Daily Pleiades MongoDB backup
 
 [Timer]
@@ -154,6 +179,15 @@ async function assertOwned(root, unit) {
 
 /** @param {Settings} settings @returns {Promise<void>} */
 async function install(settings) {
+  if (settings.isolated) {
+    run('sudo', [
+      '/opt/pleiades-auto-deploy/current/runtime/bin/node',
+      path.join(repo, 'tools/local-deployment/install-backup.mjs'),
+      path.basename(settings.root),
+      String(settings.keep),
+    ]);
+    return;
+  }
   if (os.userInfo().username !== settings.user)
     throw new Error('Run as the deployment user in deployment.json; system changes use sudo.');
   for (const file of [settings.node, path.join(settings.mongoPrefix, 'bin/mongodump')])
@@ -218,11 +252,11 @@ async function uninstall(root) {
   process.stdout.write('Removed backup units; existing backups were kept.\n');
 }
 
-/** @param {string[]} args @returns {{action:string,output?:string,backupDir?:string,keep?:string}} */
+/** @param {string[]} args @returns {{action:string,output?:string,backupDir?:string,keep?:string,release?:string}} */
 export function parseArgs(args) {
   const [action, ...rest] = args;
   if (!['install', 'uninstall', 'render'].includes(action ?? '')) throw new Error(usage);
-  /** @type {{action:string,output?:string,backupDir?:string,keep?:string}} */
+  /** @type {{action:string,output?:string,backupDir?:string,keep?:string,release?:string}} */
   const parsed = { action: /** @type {string} */ (action) };
   if (action === 'render') parsed.output = rest.shift();
   if (action === 'render' && (!parsed.output || !path.isAbsolute(parsed.output)))
@@ -233,6 +267,7 @@ export function parseArgs(args) {
     if (value === undefined) throw new Error(usage);
     if (rest[index] === '--dir') parsed.backupDir = value;
     else if (rest[index] === '--keep') parsed.keep = value;
+    else if (rest[index] === '--release') parsed.release = value;
     else throw new Error(usage);
   }
   return parsed;
@@ -241,7 +276,14 @@ export function parseArgs(args) {
 async function main() {
   if (process.getuid?.() === 0) throw new Error('Run as the deployment user, not root.');
   const options = parseArgs(process.argv.slice(2));
-  if (options.action === 'uninstall') return uninstall(repo);
+  if (options.action === 'uninstall') {
+    const configuration = JSON.parse(await fs.readFile(path.join(repo, 'deployment.json'), 'utf8'));
+    if (configuration.isolation)
+      throw new Error(
+        'Remove isolated backup units explicitly as an administrator; keep existing snapshots.',
+      );
+    return uninstall(repo);
+  }
   const settings = await readSettings(repo, options);
   if (options.action === 'install') return install(settings);
   await fs.mkdir(/** @type {string} */ (options.output), { recursive: true });

@@ -6,7 +6,11 @@ import { contains, fail, readJson, safePath } from './files.mjs';
 /** @typedef {{repo:string,environment:string,databaseEnvironment:string,mongoEnv:string,backupDir:string,stateDir:string}} Config */
 
 /** @param {string} repo @param {string} [filename] @param {string} [activeEnvironment] @returns {Promise<Config>} */
-export async function loadConfig(repo, filename, activeEnvironment = process.env.CONDA_PREFIX) {
+export async function loadConfig(
+  repo,
+  filename,
+  activeEnvironment = process.env.PLEIADES_NODE_PREFIX ?? process.env.CONDA_PREFIX,
+) {
   repo = await safePath(repo);
   const configFile = filename ?? path.join(repo, 'tools/migration/config.json');
   let settings = /** @type {Settings} */ ({});
@@ -27,13 +31,19 @@ export async function loadConfig(repo, filename, activeEnvironment = process.env
     if (typeof value !== 'string' || !value) fail('Settings must be nonempty strings.');
   const selectedEnvironment = settings.environment ?? activeEnvironment;
   if (!selectedEnvironment)
-    fail('Activate conda first, or set environment in tools/migration/config.json.');
+    fail(
+      'Select the application Node.js runtime, or set environment in tools/migration/config.json.',
+    );
   const environment = await safePath(selectedEnvironment);
-  if (!(await fs.stat(path.join(environment, 'conda-meta/history'))).isFile())
-    fail('environment must point to a conda environment.');
+  const legacyEnvironment = await regularFile(path.join(environment, 'conda-meta/history'));
+  const officialEnvironment = !legacyEnvironment && (await officialNodeEnvironment(environment));
+  if (!legacyEnvironment && !officialEnvironment)
+    fail('environment must point to a conda environment or a verified official Node.js runtime.');
   const databaseEnvironment = await safePath(settings.databaseEnvironment ?? environment);
-  if (!(await fs.stat(path.join(databaseEnvironment, 'conda-meta/history'))).isFile())
-    fail('databaseEnvironment must point to a conda environment.');
+  if (!(await regularFile(path.join(databaseEnvironment, 'conda-meta/history'))))
+    fail(
+      'databaseEnvironment must point to a conda environment; configure it separately for official Node.js.',
+    );
   const backupDir = await safePath(
     settings.backupDir ?? path.join(path.dirname(repo), 'pleiades-backups'),
   );
@@ -47,14 +57,19 @@ export async function loadConfig(repo, filename, activeEnvironment = process.env
     fail('mongoEnv must name an env file inside the repository.');
   for (const [first, second] of [
     [repo, backupDir],
-    ...(environment === path.join(repo, '.conda') ? [] : [[repo, environment]]),
+    ...(environment === path.join(repo, '.conda') ||
+    (officialEnvironment &&
+      environment !== path.join(repo, '.runtime') &&
+      contains(path.join(repo, '.runtime'), environment))
+      ? []
+      : [[repo, environment]]),
     ...(databaseEnvironment === environment ? [] : [[repo, databaseEnvironment]]),
     [backupDir, databaseEnvironment],
     ...(databaseEnvironment === environment ? [] : [[environment, databaseEnvironment]]),
     [backupDir, environment],
   ]) {
     if (contains(first, second) || contains(second, first))
-      fail('Repository, backup directory and conda environment must not overlap.');
+      fail('Repository, backup directory and runtime environments must not overlap.');
   }
   return {
     repo,
@@ -64,6 +79,39 @@ export async function loadConfig(repo, filename, activeEnvironment = process.env
     backupDir,
     stateDir: path.join(repo, '.git/pleiades-migration'),
   };
+}
+
+/** @param {string} filename @returns {Promise<boolean>} */
+async function regularFile(filename) {
+  const stat = await fs.lstat(filename).catch((error) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  return stat?.isFile() ?? false;
+}
+
+/** @param {string} prefix @returns {Promise<boolean>} */
+async function officialNodeEnvironment(prefix) {
+  const marker = path.join(prefix, '.pleiades-runtime.json');
+  if (!(await regularFile(path.join(prefix, 'bin/node'))) || !(await regularFile(marker)))
+    return false;
+  const input = await readJson(marker);
+  if (input === null || typeof input !== 'object' || Array.isArray(input)) return false;
+  const metadata = /** @type {Record<string, unknown>} */ (input);
+  return (
+    typeof metadata.version === 'string' &&
+    /^\d+\.\d+\.\d+$/.test(metadata.version) &&
+    typeof metadata.npmVersion === 'string' &&
+    /^\d+\.\d+\.\d+$/.test(metadata.npmVersion) &&
+    typeof metadata.sha256 === 'string' &&
+    /^[a-f0-9]{64}$/.test(metadata.sha256) &&
+    typeof metadata.source === 'string' &&
+    ['x64', 'arm64'].some(
+      (architecture) =>
+        metadata.source ===
+        `https://nodejs.org/dist/v${metadata.version}/node-v${metadata.version}-linux-${architecture}.tar.xz`,
+    )
+  );
 }
 
 /** @param {Config} config @returns {Promise<void>} */

@@ -82,7 +82,8 @@ export const zoneLabel = (timeZone: string, atMs: number): string => {
   const part = new Intl.DateTimeFormat('en-US', { timeZone, timeZoneName: 'shortOffset' })
     .formatToParts(atMs)
     .find((entry) => entry.type === 'timeZoneName')?.value;
-  return (part ?? 'GMT').replace('GMT', 'UTC');
+  const label = (part ?? 'GMT').replace('GMT', 'UTC');
+  return /^UTC[+-]0{1,2}(?::00)?$/.test(label) ? 'UTC' : label;
 };
 
 /** Relative change in percent, or `undefined` without a previous value. */

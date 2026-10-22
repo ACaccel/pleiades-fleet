@@ -43,3 +43,5 @@ tools/migration/*.archive.gz
 /.conda/
 /.deploy/
 /deployment.json
+/.runtime/
+/.conda-fonts/

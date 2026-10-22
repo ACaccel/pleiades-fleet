@@ -30,6 +30,11 @@ import {
 } from './deployment/release';
 import { applyUnits, restore, type Transaction } from './deployment/transaction';
 import { pruneAfterDeploy } from './deployment/retention';
+import {
+  deployIsolatedRelease,
+  prepareIsolatedRelease,
+  recoverIsolatedDeployment,
+} from './deployment/isolated';
 
 const root = realpathSync(resolve(__dirname, '..'));
 const stateDirectory = join(root, '.deploy');
@@ -125,6 +130,21 @@ async function main(): Promise<void> {
   if (process.getuid?.() === 0)
     throw new Error('Run as your ordinary user; system changes request sudo');
   if (/[\r\n\0]/.test(root)) throw new Error('Unsupported project path');
+  const configured = existsSync(join(root, 'deployment.json')) ? readConfig(root) : undefined;
+  if (configured?.isolation) {
+    if (action === 'recover') {
+      recoverIsolatedDeployment();
+      return;
+    }
+    if (!['prepare', 'deploy'].includes(action))
+      throw new Error(
+        'Isolated services require the isolated administrator runbook for database cutover or removal; legacy deployment will not replace hardened units',
+      );
+    const id = prepareIsolatedRelease(root, configured, target ? [target] : configured.bots);
+    console.log(`Prepared isolated release ${id}.`);
+    if (action === 'deploy') await deployIsolatedRelease(id);
+    return;
+  }
   mkdirSync(stateDirectory, { recursive: true, mode: 0o700 });
   const unlock = lock();
   try {

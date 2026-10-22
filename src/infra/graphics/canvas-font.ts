@@ -1,8 +1,9 @@
 import { existsSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { createCanvas, registerFont } from 'canvas';
 
 import { ConfigurationError } from '../../core/errors';
+import { readCanvasFontDirectory } from '../../core/config/env';
 
 const CANVAS_FONT_FAMILY = 'Pleiades CJK';
 export const canvasFont = (size: number, bold = false): string =>
@@ -10,9 +11,8 @@ export const canvasFont = (size: number, bold = false): string =>
 
 let registered = false;
 
-/** Path of a font file shipped in the selected Conda runtime's `fonts/` directory. */
-export const condaFontPath = (file: string): string =>
-  join(dirname(process.execPath), '..', 'fonts', file);
+/** Path of a font asset in the selected fonts-only environment or legacy Conda layout. */
+export const condaFontPath = (file: string): string => join(readCanvasFontDirectory(), file);
 
 const fontUnavailable = (fontPath: string, reason: string): ConfigurationError =>
   new ConfigurationError({
@@ -22,7 +22,7 @@ const fontUnavailable = (fontPath: string, reason: string): ConfigurationError =
   });
 
 /**
- * Register the font shipped in the selected Conda runtime before drawing text.
+ * Register the configured font asset before drawing text.
  * Setup and release preparation call it to reject a host without the font; a
  * chart render calls it again in case the runtime changed since.
  *

@@ -13,6 +13,7 @@ Installs Miniforge under $HOME/miniforge3 unless --prefix is supplied.
 Default: print the plan. Add --apply to install into the dedicated environment.
 Requires Linux, Bash, coreutils, tar, and curl or wget for downloads.
 The pinned official Miniforge installer and its SHA256 are downloaded over HTTPS.
+Node.js is downloaded separately from nodejs.org with its official SHA256.
 Advanced: --installer FILE --installer-sha256 HEX64 --miniforge-version X.Y.Z-N
 No sudo, shell startup changes, or service startup occurs.
 HELP
@@ -73,7 +74,7 @@ done
 [[ "$npm_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail 'NPM_VERSION must pin an exact version (X.Y.Z)'
 [[ "$miniforge_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$ ]] || fail '--miniforge-version must pin a release (X.Y.Z-N)'
 [[ -z "$installer_sha256" || "$installer_sha256" =~ ^[a-fA-F0-9]{64}$ ]] || fail '--installer-sha256 must be a trusted SHA256 checksum'
-for command in uname realpath sha256sum mktemp rm mkdir dirname tar bash; do
+for command in uname realpath sha256sum mktemp rm mkdir dirname tar bash ln mv chmod; do
   command -v "$command" >/dev/null || fail "Missing prerequisite: $command"
 done
 [[ "$(uname -s)" == Linux ]] || fail 'Only Linux is supported'
@@ -88,6 +89,15 @@ if [[ -e "$prefix" ]]; then
 fi
 if [[ -e "$environment" ]]; then
   [[ -f "$environment/conda-meta/history" ]] || fail 'Existing environment path is not a conda environment'
+  for metadata in "$environment"/conda-meta/nodejs-*.json; do
+    [[ ! -e "$metadata" && ! -L "$metadata" ]] || fail 'Existing environment owns Conda Node.js; choose a fresh recovery environment'
+  done
+  if [[ -e "$environment/bin/node" || -L "$environment/bin/node" ]]; then
+    [[ -L "$environment/bin/node" ]] || fail 'Existing Node.js must remain unchanged; choose a fresh recovery environment'
+    existing_node=$(realpath -- "$environment/bin/node") || fail 'Invalid existing Node.js link; choose a fresh recovery environment'
+    [[ "$existing_node" == "$environment/.node-runtime/"*'/bin/node' && -f "${existing_node%/bin/node}/.pleiades-runtime.json" ]] || fail 'Existing Node.js is not managed by this bootstrap; choose a fresh recovery environment'
+  fi
+  [[ ! -L "$environment/.node-runtime" ]] || fail 'Node.js runtime paths cannot be symlinks'
 fi
 if [[ -n "$installer" ]]; then
   [[ -f "$installer" && -r "$installer" ]] || fail 'Local installer is not a readable file'
@@ -97,8 +107,9 @@ if [[ ! -x "$conda" && ( -z "$installer" || -z "$installer_sha256" ) ]]; then
   command -v curl >/dev/null || command -v wget >/dev/null || fail 'Install curl or wget, or supply --installer with --installer-sha256'
 fi
 
-packages=("mongodb=$mongodb_version" "mongo-tools=$mongo_tools_version" "nodejs=$node_version"
-  tmux rsync git python compilers make pkg-config cairo pango libjpeg-turbo giflib librsvg curl)
+packages=("mongodb=$mongodb_version" "mongo-tools=$mongo_tools_version"
+  tmux rsync git python compilers make pkg-config cairo pango libjpeg-turbo giflib librsvg curl xz
+  font-ttf-noto-cjk=2.004 font-ttf-noto-emoji=2.034)
 asset="Miniforge3-$miniforge_version-Linux-$architecture.sh"
 url="https://github.com/conda-forge/miniforge/releases/download/$miniforge_version/$asset"
 action=create
@@ -106,18 +117,28 @@ action=create
 printf 'Conda prefix: %s\nEnvironment: %s\nMiniforge release: %s\n' "$prefix" "$environment" "$miniforge_version"
 printf 'Conda %s packages:' "$action"
 printf ' %s' "${packages[@]}"
-printf '\nNpm tools: npm@%s mongosh@%s\n' "$npm_version" "$mongosh_version"
+case "$architecture" in x86_64) node_architecture=x64 ;; aarch64) node_architecture=arm64 ;; esac
+node_name="node-v$node_version-linux-$node_architecture"
+node_base="https://nodejs.org/dist/v$node_version"
+node_runtime="$environment/.node-runtime/$node_name"
+printf '\nOfficial Node.js: %s\nNpm tools: npm@%s mongosh@%s\n' "$node_version" "$npm_version" "$mongosh_version"
 if (( ! apply )); then
   printf 'Plan only. Rerun with --apply to install. Existing environments will be updated.\n'
   exit 0
 fi
 
-temporary=''
-cleanup() { [[ -z "$temporary" ]] || rm -rf -- "$temporary"; }
+temporary='' node_stage=''
+cleanup() {
+  [[ -z "$temporary" ]] || rm -rf -- "$temporary"
+  [[ -z "$node_stage" ]] || rm -rf -- "$node_stage"
+  return 0
+}
 trap cleanup EXIT
 download() {
   if command -v curl >/dev/null; then
     curl --fail --location --proto '=https' --proto-redir '=https' --tlsv1.2 --retry 3 --output "$2" "$1"
+  elif [[ -x "$environment/bin/curl" ]]; then
+    "$environment/bin/curl" --fail --location --proto '=https' --proto-redir '=https' --tlsv1.2 --retry 3 --output "$2" "$1"
   else
     wget --https-only --tries=3 --output-document="$2" "$1"
   fi
@@ -149,22 +170,68 @@ fi
 conda_arguments=("$action" --prefix "$environment" --override-channels --channel conda-forge --strict-channel-priority "${packages[@]}")
 "$conda" "${conda_arguments[@]}" --dry-run
 "$conda" "${conda_arguments[@]}" --yes
-"$conda" run --prefix "$environment" --no-capture-output npm install --global --prefix "$environment" \
-  "npm@$npm_version" "mongosh@$mongosh_version"
 
-# Check installed metadata and executable health, including reused environments.
+# Node is deliberately absent from Conda metadata; its release can precede conda-forge.
 "$conda" run --prefix "$environment" --no-capture-output python -c '
 import glob, json, os, sys
-root, mongo, tools, node = sys.argv[1:]
+root, mongo, tools = sys.argv[1:]
 installed = {}
 for filename in glob.glob(os.path.join(root, "conda-meta", "*.json")):
     with open(filename, encoding="utf-8") as handle:
         package = json.load(handle)
     installed[package["name"]] = package["version"]
-for name, expected in [("mongodb", mongo), ("mongo-tools", tools), ("nodejs", node)]:
+for name, expected in [("mongodb", mongo), ("mongo-tools", tools)]:
     if installed.get(name) != expected:
         raise SystemExit("Version verification failed: " + name)
-' "$environment" "$mongodb_version" "$mongo_tools_version" "$node_version"
+' "$environment" "$mongodb_version" "$mongo_tools_version"
+
+[[ ! -L "$environment/.node-runtime" && ! -L "$node_runtime" ]] || fail 'Node.js runtime paths cannot be symlinks'
+if [[ ! -e "$node_runtime" ]]; then
+  [[ -n "$temporary" ]] || temporary=$(mktemp -d)
+  archive="$temporary/$node_name.tar.xz"
+  download "$node_base/SHASUMS256.txt" "$temporary/node-shasums.txt"
+  node_checksum='' checksum_matches=0
+  while IFS= read -r entry || [[ -n "$entry" ]]; do
+    if [[ "$entry" =~ ^([a-fA-F0-9]{64})[[:blank:]]+\*?([^[:space:]]+)$ && "${BASH_REMATCH[2]}" == "$node_name.tar.xz" ]]; then
+      node_checksum=${BASH_REMATCH[1]}
+      checksum_matches=$((checksum_matches + 1))
+    fi
+  done < "$temporary/node-shasums.txt"
+  [[ "$checksum_matches" == 1 ]] || fail 'Official Node.js checksum manifest has no unique matching archive'
+  download "$node_base/$node_name.tar.xz" "$archive"
+  actual_sha256=$(sha256sum -- "$archive")
+  actual_sha256=${actual_sha256%% *}
+  [[ "${actual_sha256,,}" == "${node_checksum,,}" ]] || fail 'Node.js archive checksum mismatch'
+  # Reject unexpected paths before extracting even though the archive is checksum verified.
+  entries=$(PATH="$environment/bin:$PATH" tar -tJf "$archive")
+  while IFS= read -r entry; do
+    [[ "$entry" == "$node_name/"* && "$entry" != *'/../'* && "$entry" != */.. ]] || fail 'Unexpected path in Node.js archive'
+  done <<< "$entries"
+  mkdir -p -- "$environment/.node-runtime"
+  chmod 700 -- "$environment/.node-runtime"
+  node_stage=$(mktemp -d "$environment/.node-runtime/.install-XXXXXX")
+  PATH="$environment/bin:$PATH" tar -xJf "$archive" --strip-components=1 --no-same-owner --no-same-permissions -C "$node_stage"
+  [[ -x "$node_stage/bin/node" && -f "$node_stage/lib/node_modules/npm/bin/npm-cli.js" ]] || fail 'Official Node.js archive is incomplete'
+  [[ "$("$node_stage/bin/node" --version)" == "v$node_version" ]] || fail 'Downloaded Node.js version does not match runtime.conf'
+  PATH="$node_stage/bin:$environment/bin:$PATH" "$node_stage/bin/node" "$node_stage/lib/node_modules/npm/bin/npm-cli.js" \
+    install --global --prefix "$node_stage" "npm@$npm_version" --no-audit --no-fund --ignore-scripts
+  printf '{"version":"%s","npmVersion":"%s","source":"%s/%s.tar.xz","sha256":"%s"}\n' \
+    "$node_version" "$npm_version" "$node_base" "$node_name" "${node_checksum,,}" > "$node_stage/.pleiades-runtime.json"
+  mv -- "$node_stage" "$node_runtime"
+  node_stage=''
+fi
+[[ -f "$node_runtime/.pleiades-runtime.json" && -x "$node_runtime/bin/node" ]] || fail 'Existing official Node.js runtime is incomplete'
+[[ "$("$node_runtime/bin/node" --version)" == "v$node_version" ]] || fail 'Version verification failed: node'
+[[ "$("$node_runtime/bin/node" "$node_runtime/lib/node_modules/npm/bin/npm-cli.js" --version)" == "$npm_version" ]] || fail 'Version verification failed: npm'
+mkdir -p -- "$environment/bin"
+for binary in node npm npx; do
+  [[ -e "$node_runtime/bin/$binary" ]] || fail "Missing official Node.js entry point: $binary"
+  ln -sfn -- "$node_runtime/bin/$binary" "$environment/bin/$binary"
+done
+"$conda" run --prefix "$environment" --no-capture-output "$environment/bin/npm" install --global --prefix "$environment" \
+  "mongosh@$mongosh_version" --no-audit --no-fund
+
+# Check executable health, including reused environments.
 for binary in mongod mongodump mongorestore git; do
   "$conda" run --prefix "$environment" --no-capture-output "$environment/bin/$binary" --version
 done
