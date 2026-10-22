@@ -107,6 +107,5 @@ root-cause it; do not bypass.
 
 ## Commit protocol
 
-- **Commit only when the user explicitly asks — then commit AND push together.** Do not auto-commit (or `git commit --amend`) after making changes, completing a task, or fixing review-gate / stop-hook findings — make the edits, run the gates, report, and wait for an explicit "commit" instruction. When the user does ask, push to `dev` in the same step; `git push` is part of the commit action, not a separate authorisation. A one-off "commit this" authorises that commit and its push only.
 - Commits are small and focused: `<type>(<scope>): <subject>` where `<type>` is `feat`, `fix`, `refactor`, `chore`, `docs`, or `test`. The body explains the why.
 - Routine work is committed **directly to `dev`** — no per-change branch or PR. PRs are required only for `dev` → `main` releases and hotfixes, and are optional for large / risky `feature/*` work. The full branching model is in `docs/contributing/branching-and-releases.md`.

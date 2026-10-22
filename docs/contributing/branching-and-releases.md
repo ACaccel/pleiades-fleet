@@ -2,10 +2,9 @@
 
 ## Commit conventions
 
-Follow the [commit protocol](../../AGENTS.md#commit-protocol): explicit requests
-authorize commit and push to `dev` together. Review staged content for secrets,
-pass all [quality gates](../../CONTRIBUTING.md#quality-gates), and confirm green CI
-after pushing. Never bypass hooks; amend or force-push only with authorization.
+Follow the [commit protocol](../../AGENTS.md#commit-protocol). Review staged
+content for secrets, pass all [quality gates](../../CONTRIBUTING.md#quality-gates),
+and confirm green CI after pushing. Never bypass hooks; amend or force-push only with authorization.
 
 ## Branching model
 
