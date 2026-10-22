@@ -40,8 +40,10 @@ The helper retains the newest three releases plus every service/backup reference
    bots without their credentials. Install the pinned official Node and
    Conda fonts, run `npm ci`, all eight local quality gates, and stage the release.
 4. Publish pre-stop progress, then recheck dev and required CI immediately before
-   invoking the installed helper. The helper snapshots units, stops selected bots,
-   installs root-owned code and units, and checks process-specific readiness.
+   invoking the installed helper. The helper copies root-owned code with explicit service-group permissions
+   despite its private umask, then checks Node, dependencies, settings and graphics
+   as the service account before stopping selected bots. It snapshots units,
+   installs units, and checks process-specific readiness.
 5. Save each successfully deployed bot's SHA. Failed installation restores prior
    units and active/enabled state; interruption keeps a recovery journal.
 

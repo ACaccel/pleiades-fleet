@@ -222,6 +222,7 @@ export function copyStage(source, destination, uid, gid, setOwner = chownSync) {
   const copy = (fd, target) => {
     mkdirSync(target, { mode: 0o750 });
     setOwner(target, 0, gid);
+    chmodSync(target, 0o750);
     for (const name of readdirSync(`/proc/self/fd/${fd}`)) {
       if (name === '.' || name === '..' || name.includes('/'))
         throw new Error('Unsafe release entry');
@@ -262,6 +263,7 @@ export function copyStage(source, destination, uid, gid, setOwner = chownSync) {
             flag: 'wx',
           });
           setOwner(output, 0, gid);
+          chmodSync(output, actual.mode & 0o111 ? 0o750 : 0o640);
         } finally {
           closeSync(file);
         }
@@ -388,6 +390,44 @@ export function validateReleaseDirectories(directory, selected) {
     closeSync(fd);
   }
 }
+/** Check access as the service account before stopping any currently running bot. */
+export function releaseAccessScript(selected) {
+  return `const fs = require('node:fs');
+    if (process.getuid() === 0) throw Error('Service access check requires an ordinary account');
+    for (const file of ['package.json', 'tsconfig.json', 'node_modules/ts-node/register/index.js',
+      'fonts/NotoSansCJKtc-VF.ttf', ...${JSON.stringify(selected)}.flatMap(bot =>
+        ['index.ts', '.env', 'config.json'].map(name => 'src/bot/' + bot + '/' + name))])
+      fs.accessSync(file, fs.constants.R_OK);
+    fs.accessSync('runtime/bin/node', fs.constants.X_OK);
+    for (const file of ['package.json', 'runtime/bin/node']) {
+      let writable = true;
+      try { fs.accessSync(file, fs.constants.W_OK); } catch { writable = false; }
+      if (writable) throw Error('Service account can modify immutable release files');
+    }
+    require('ts-node/register');
+    require('tsconfig-paths/register');
+    require('discord.js');
+    require('mongoose');
+    require('./src/infra/graphics/canvas-font').ensureCanvasFont();
+    if (!require('./src/infra/graphics/canvas-emoji').renderEmojiImage(String.fromCodePoint(0x1F44D), 28))
+      throw Error('Emoji rendering failed');`;
+}
+function verifyServiceAccess(directory, selected) {
+  command(
+    '/usr/sbin/runuser',
+    ['-u', 'pleiades', '--', `${directory}/runtime/bin/node`, '-e', releaseAccessScript(selected)],
+    {
+      cwd: directory,
+      env: {
+        ...process.env,
+        NODE_OPTIONS: '',
+        NODE_PATH: '',
+        TS_NODE_PROJECT: join(directory, 'tsconfig.json'),
+        PLEIADES_FONT_DIR: join(directory, 'fonts'),
+      },
+    },
+  );
+}
 function attachSettings(directory, selected) {
   validateReleaseDirectories(directory, selected);
   for (const bot of selected) {
@@ -493,6 +533,7 @@ export async function main(args = process.argv.slice(2)) {
         throw new Error('Release runtime or fonts missing');
       attachSettings(temporary, manifest.bots);
       renameSync(temporary, directory);
+      verifyServiceAccess(directory, manifest.bots);
       const after = Object.fromEntries(
         manifest.bots.map((bot) => [
           `pleiades@${bot}.service`,

@@ -1,4 +1,14 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import {
+  chmodSync,
+  statSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
@@ -121,6 +131,33 @@ describe('isolated deployment privilege boundary', () => {
         () => undefined,
       ),
     ).toThrow();
+  });
+  it('preserves service-group access under the privileged installer umask', () => {
+    const root = temporary();
+    const source = join(root, 'stage');
+    mkdirSync(join(source, 'runtime/bin'), { recursive: true });
+    mkdirSync(join(source, 'node_modules/.bin'), { recursive: true });
+    writeFileSync(join(source, 'runtime/bin/node'), 'synthetic executable');
+    chmodSync(join(source, 'runtime/bin/node'), 0o755);
+    writeFileSync(join(source, 'node_modules/module.js'), 'synthetic module');
+    symlinkSync('../module.js', join(source, 'node_modules/.bin/module'));
+    const target = join(root, 'release');
+    execFileSync(process.execPath, [
+      '--input-type=module',
+      '-e',
+      `const { copyStage } = await import(process.argv[2]);
+       process.umask(0o077);
+       copyStage(process.argv[3], process.argv[4], process.getuid(), process.getgid(), () => {});`,
+      'copy-stage-test',
+      join(__dirname, 'helper.mjs'),
+      source,
+      target,
+    ]);
+    for (const directory of ['', 'runtime', 'runtime/bin', 'node_modules', 'node_modules/.bin'])
+      expect(statSync(join(target, directory)).mode & 0o777).toBe(0o750);
+    expect(statSync(join(target, 'runtime/bin/node')).mode & 0o777).toBe(0o750);
+    expect(statSync(join(target, 'node_modules/module.js')).mode & 0o777).toBe(0o640);
+    expect(readFileSync(join(target, 'node_modules/.bin/module'), 'utf8')).toBe('synthetic module');
   });
   it('rejects symlink ancestors before attaching privileged settings', () => {
     const root = temporary();

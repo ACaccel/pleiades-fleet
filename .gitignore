@@ -45,3 +45,7 @@ tools/migration/*.archive.gz
 /deployment.json
 /.runtime/
 /.conda-fonts/
+
+# Complete state copies retained by offline cutover recovery.
+/data.pre-cutover-*/
+/logs.pre-cutover-*/
