@@ -73,8 +73,9 @@ Every bot shares the framework capabilities:
   cards and video uploads from validated proxy metadata, without relying on
   Discord to expand a proxy URL. Uploaded videos use a single Components V2
   card with all post information above the video. nhentai and wnacg links in
-  age-restricted channels open a paged reader with prefetched pages. See
-  [preview configuration](docs/configuration.md#social-previews-and-feeds).
+  age-restricted channels open a paged reader with prefetched pages.
+  Pixiv artwork previews are available with an operator-configured proxy list. See
+  [preview configuration](docs/configuration.md#social-previews-and-feeds) for setup.
 - **Message archive.** msg-archive captures messages, edits (up to 50 previous
   versions), deletions and complete reaction memberships. Administrators run a
   resumable [full backup](docs/message-archive.md#full-backup) after one

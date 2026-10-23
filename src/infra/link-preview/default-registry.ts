@@ -3,8 +3,9 @@
  * provider, in priority order. Built via {@link createDefaultLinkPreviewRegistry}
  * so a test can construct its own partial registry.
  *
- * Every rewrite provider's proxy-host list is a required dependency. The
- * domains are third-party embed-fix services whose uptime and policies
+ * Rewrite providers use operator-supplied proxy-host lists. Pixiv is opt-in
+ * to preserve existing configurations; the original six lists are required.
+ * The domains are third-party embed-fix services whose uptime and policies
  * change faster than releases ship, so they are operator configuration
  * (the plugin's `social_link_preview` block) and never code. Requiring the
  * fields forces a new rewrite provider to be given a configured list
@@ -16,7 +17,7 @@
  *   1. Implement {@link LinkPreviewProvider} (or reuse `createRewriteProvider`).
  *   2. Append its name to {@link LinkPreviewProviderName} in `./types`.
  *   3. Add one line to the `all` array below — and, for a rewrite provider,
- *      a required `<source>ProxyHosts` field to {@link LinkPreviewRegistryDeps}
+ *      a `<source>ProxyHosts` field to {@link LinkPreviewRegistryDeps}
  *      plus the matching operator config key.
  */
 import {
@@ -31,6 +32,7 @@ import { createBahamutProvider } from './providers/bahamut';
 import { createBilibiliProvider } from './providers/bilibili';
 import { createFacebookProvider } from './providers/facebook';
 import { createInstagramProvider } from './providers/instagram';
+import { createPixivProvider } from './providers/pixiv';
 import { createRedditProvider } from './providers/reddit';
 import { createThreadsProvider } from './providers/threads';
 import { createTwitterProvider } from './providers/twitter';
@@ -48,6 +50,8 @@ interface LinkPreviewRegistryDeps {
   readonly twitterApiBaseUrls?: readonly string[];
   /** Instagram embed-proxy hosts, probed in list order. */
   readonly instagramProxyHosts: readonly string[];
+  /** Pixiv embed-proxy hosts; omitted to keep existing configurations unchanged. */
+  readonly pixivProxyHosts?: readonly string[];
   /** Threads embed-proxy hosts, probed in list order. */
   readonly threadsProxyHosts: readonly string[];
   /** Facebook embed-proxy hosts, probed in list order. */
@@ -77,6 +81,9 @@ export const createDefaultLinkPreviewRegistry = (
       ...(deps.twitterApiBaseUrls === undefined ? {} : { apiBaseUrls: deps.twitterApiBaseUrls }),
     }),
     createInstagramProvider({ proxyHosts: deps.instagramProxyHosts, ogClient }),
+    ...(deps.pixivProxyHosts === undefined
+      ? []
+      : [createPixivProvider({ proxyHosts: deps.pixivProxyHosts, ogClient })]),
     createThreadsProvider({ proxyHosts: deps.threadsProxyHosts, ogClient }),
     createFacebookProvider({ proxyHosts: deps.facebookProxyHosts, ogClient }),
     createRedditProvider({ proxyHosts: deps.redditProxyHosts, ogClient }),

@@ -72,7 +72,9 @@ const capabilitiesOf = (
   });
   return {
     features,
-    socialProviders: social.providers ?? LINK_PREVIEW_PROVIDER_NAMES,
+    socialProviders: (social.providers ?? LINK_PREVIEW_PROVIDER_NAMES).filter(
+      (name) => name !== 'pixiv' || social.pixivProxyHosts !== undefined,
+    ),
     maxPreviewUrls: social.maxUrlsPerMessage,
     ...options,
     ...limits,

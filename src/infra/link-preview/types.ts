@@ -38,6 +38,7 @@ import type { Result } from '../../core/result';
 export const LINK_PREVIEW_PROVIDER_NAMES = [
   'twitter',
   'instagram',
+  'pixiv',
   'threads',
   'facebook',
   'reddit',

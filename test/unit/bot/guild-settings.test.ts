@@ -55,6 +55,21 @@ const build = (
 };
 
 describe('Shared guild settings composition', () => {
+  it.each([
+    { config: {}, available: false },
+    { config: { providers: ['pixiv'] }, available: false },
+    { config: { pixivProxyHosts: ['phixiv.net'] }, available: true },
+    { config: { pixivProxyHosts: ['phixiv.net'], providers: ['twitter'] }, available: false },
+  ])(
+    'advertises Pixiv only when configured and allowed: $config',
+    async ({ config, available }) => {
+      const { options } = build({ social_link_preview: config });
+      expect(options.capabilities.socialProviders.includes('pixiv')).toBe(available);
+      expect(
+        (await options.legacySeed(identity.guildId)).socialPreview.providers.includes('pixiv'),
+      ).toBe(available);
+    },
+  );
   it('does not seed Tomori earthquake delivery even when both sources are available', async () => {
     const { options } = build({}, { earthquake: { alerts: true, reports: true } });
     expect(options.capabilities.earthquake).toEqual({ alerts: true, reports: true });

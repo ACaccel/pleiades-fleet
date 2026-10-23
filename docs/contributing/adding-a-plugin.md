@@ -38,6 +38,9 @@ Do not cast the context to access the container.
 ## Social preview media
 
 Keep provider metadata retrieval separate from Discord rendering and delivery.
+Pixiv reuses the validated rewrite strategy with normalized artwork paths.
+Its optional proxy-host list must gate both registry loading and guild settings
+capabilities so older configurations do not advertise an unavailable provider.
 Facebook and Threads custom cards use existing OpenGraph retrieval rather than
 discarding validated metadata and relying on Discord to expand a proxy URL.
 Keep uploaded videos last in a single Components V2 card, after all post metadata;

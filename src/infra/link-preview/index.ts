@@ -30,6 +30,7 @@ export { translateLinkPreviewError, invalidResponseError } from './error-transla
 export { createRewriteProvider } from './providers/rewrite-provider';
 export { createTwitterProvider } from './providers/twitter';
 export { createInstagramProvider } from './providers/instagram';
+export { createPixivProvider } from './providers/pixiv';
 export { createThreadsProvider } from './providers/threads';
 export { createFacebookProvider } from './providers/facebook';
 export { createRedditProvider } from './providers/reddit';

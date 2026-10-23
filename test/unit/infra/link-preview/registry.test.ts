@@ -26,6 +26,7 @@ const u = (href: string): URL => new URL(href);
 const PROXY_HOSTS = {
   twitterProxyHosts: ['vxtwitter.com'],
   instagramProxyHosts: ['uuinstagram.com'],
+  pixivProxyHosts: ['phixiv.net'],
   threadsProxyHosts: ['viewthreads.com'],
   facebookProxyHosts: ['facebed.com'],
   redditProxyHosts: ['vxreddit.com'],
@@ -85,6 +86,7 @@ describe('createDefaultLinkPreviewRegistry', () => {
     const registry = createDefaultLinkPreviewRegistry({ ...PROXY_HOSTS });
     expect(registry.findProvider(u('https://x.com/a/status/1'))?.name).toBe('twitter');
     expect(registry.findProvider(u('https://www.instagram.com/p/abc/'))?.name).toBe('instagram');
+    expect(registry.findProvider(u('https://www.pixiv.net/artworks/123'))?.name).toBe('pixiv');
     expect(registry.findProvider(u('https://www.threads.net/@a/post/1'))?.name).toBe('threads');
     expect(registry.findProvider(u('https://www.facebook.com/a/posts/1'))?.name).toBe('facebook');
     expect(registry.findProvider(u('https://www.reddit.com/r/aww/comments/abc123/'))?.name).toBe(
@@ -109,6 +111,7 @@ describe('createDefaultLinkPreviewRegistry', () => {
       enabledProviders: ['twitter'],
     });
     expect(registry.findProvider(u('https://x.com/a/status/1'))?.name).toBe('twitter');
+    expect(registry.findProvider(u('https://www.pixiv.net/artworks/123'))).toBeUndefined();
     expect(registry.findProvider(u('https://forum.gamer.com.tw/C.php?bsn=1'))).toBeUndefined();
   });
 
@@ -120,6 +123,7 @@ describe('createDefaultLinkPreviewRegistry', () => {
     const probed = {
       twitter: await rewriteOf(registry, 'https://x.com/a/status/1'),
       instagram: await rewriteOf(registry, 'https://www.instagram.com/p/abc/'),
+      pixiv: await rewriteOf(registry, 'https://www.pixiv.net/artworks/123'),
       threads: await rewriteOf(registry, 'https://www.threads.net/@a/post/1'),
       facebook: await rewriteOf(registry, 'https://www.facebook.com/a/posts/1'),
       reddit: await rewriteOf(registry, 'https://www.reddit.com/r/aww/comments/abc123/'),
@@ -128,6 +132,7 @@ describe('createDefaultLinkPreviewRegistry', () => {
     expect(Object.values(probed).map((href) => new URL(href).hostname)).toEqual([
       'vxtwitter.com',
       'uuinstagram.com',
+      'phixiv.net',
       'viewthreads.com',
       'facebed.com',
       'vxreddit.com',
@@ -149,5 +154,12 @@ describe('createDefaultLinkPreviewRegistry', () => {
       ogClient,
     });
     expect(await rewriteOf(registry, 'https://x.com/a/status/1')).toBe(candidate);
+  });
+
+  it('preserves existing registries without Pixiv proxy configuration', () => {
+    const { pixivProxyHosts: _pixiv, ...hosts } = PROXY_HOSTS;
+    const registry = createDefaultLinkPreviewRegistry(hosts);
+    expect(registry.findProvider(u('https://www.pixiv.net/artworks/123'))).toBeUndefined();
+    expect(registry.findProvider(u('https://x.com/a/status/1'))?.name).toBe('twitter');
   });
 });

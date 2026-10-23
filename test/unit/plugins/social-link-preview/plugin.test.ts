@@ -149,6 +149,16 @@ const fire = async (
 ): Promise<void> => deliver(createSocialLinkPreviewPlugin(rawConfig, deps), message, policy);
 
 describe('createSocialLinkPreviewPlugin shape', () => {
+  it('forwards optional Pixiv proxies to the registry', () => {
+    const spy = vi.mocked(createDefaultLinkPreviewRegistry);
+    spy.mockClear();
+    createSocialLinkPreviewPlugin(
+      enabledConfig({ providers: ['pixiv'], pixivProxyHosts: ['phixiv.net'] }),
+    );
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ enabledProviders: ['pixiv'], pixivProxyHosts: ['phixiv.net'] }),
+    );
+  });
   it('forwards all six configured proxy-host lists and the provider allow-list to the registry factory', () => {
     const spy = vi.mocked(createDefaultLinkPreviewRegistry);
     spy.mockClear();

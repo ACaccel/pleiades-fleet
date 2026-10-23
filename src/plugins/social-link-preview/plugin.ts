@@ -76,6 +76,9 @@ export const createSocialLinkPreviewPlugin = (
             ? {}
             : { twitterApiBaseUrls: config.twitterApiBaseUrls }),
           instagramProxyHosts: config.instagramProxyHosts,
+          ...(config.pixivProxyHosts === undefined
+            ? {}
+            : { pixivProxyHosts: config.pixivProxyHosts }),
           threadsProxyHosts: config.threadsProxyHosts,
           facebookProxyHosts: config.facebookProxyHosts,
           redditProxyHosts: config.redditProxyHosts,

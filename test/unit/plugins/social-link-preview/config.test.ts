@@ -46,6 +46,20 @@ const issuePaths = (error: z.ZodError): string[] =>
   error.issues.map((issue) => issue.path.join('.'));
 
 describe('parseSocialLinkPreviewConfig', () => {
+  it('opts into Pixiv only with an explicit nonempty proxy-host list', () => {
+    expect(
+      parseSocialLinkPreviewConfig({ enabled: true, ...proxyHosts() }).pixivProxyHosts,
+    ).toBeUndefined();
+    expect(
+      parseSocialLinkPreviewConfig({
+        enabled: true,
+        ...proxyHosts(),
+        providers: ['pixiv'],
+        pixivProxyHosts: ['phixiv.net'],
+      }).pixivProxyHosts,
+    ).toEqual(['phixiv.net']);
+    expect(issuePaths(parseFailure({ pixivProxyHosts: [] }))).toContain('pixivProxyHosts');
+  });
   it('returns the disabled, fully-defaulted config when the block is absent', () => {
     const config = parseSocialLinkPreviewConfig(undefined);
     expect(config.enabled).toBe(false);

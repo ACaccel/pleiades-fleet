@@ -296,6 +296,13 @@ list edits update the original subscription `_id` with upsert disabled, so stale
 panels cannot recreate removed records or overwrite their replacements. Cancel, expiry and restart discard drafts. Supported controls
 are defined in [feed subscriptions](configuration.md#feed-subscriptions).
 
+Pixiv normalizes artwork permalinks, language-prefixed URLs, `/i/` links and
+legacy `illust_id` queries to a proxy artwork path, dropping share attribution.
+It reuses the validated rewrite strategy; registration and guild settings
+availability require an explicit `pixivProxyHosts` list. Existing guild provider
+selections remain unchanged. See
+[preview configuration](configuration.md#social-previews-and-feeds) for setup.
+
 Threads retains validated proxy OpenGraph metadata for custom cards instead of
 depending on a second fetch by Discord's URL crawler. Facebook retains metadata
 from proxies or the source site. Both preserve the complete image list. The renderer

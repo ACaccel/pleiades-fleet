@@ -5,13 +5,14 @@
  * caps) default in code, so a bot may omit the `social_link_preview`
  * block entirely and still boot with a safe (disabled) configuration.
  *
- * The six embed-proxy host lists are deliberately not defaulted: they name
+ * The six original embed-proxy host lists are deliberately not defaulted: they name
  * third-party services whose uptime and policies change far faster than a
  * release ships. Once `enabled` is true every list is mandatory, and a
  * missing one fails startup with an issue naming the key — better than
  * silently probing a built-in host that went dark. While the feature is
  * disabled the lists stay optional, so an operator can park it without
- * discarding the configuration.
+ * discarding the configuration. Pixiv is separately opt-in through its
+ * optional, nonempty host list so existing enabled configurations still boot.
  *
  * `.strict()` surfaces a mistyped key at startup rather than silently
  * ignoring it.
@@ -80,6 +81,8 @@ const GallerySchema = z
 
 /** Fields shared by both branches; all defaulted, none operator-mandatory. */
 const commonShape = {
+  /** Optional opt-in so existing enabled configurations still start without Pixiv. */
+  pixivProxyHosts: proxyHostList('pixivProxyHosts').optional(),
   /** Attachment downloads are bounded independently of metadata probes. */
   maxVideoBytes: z
     .number()

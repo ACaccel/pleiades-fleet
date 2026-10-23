@@ -225,6 +225,18 @@ short lists of working hosts. A host whose response is a login wall, an error
 page or a redirect back to the source site is skipped; when no host yields a
 usable preview, the message gets no reply.
 
+Pixiv is opt-in: set `pixivProxyHosts` to a nonempty host list (for example
+`["phixiv.net", "ppxiv.net"]`, following the
+[proxy's supported format](https://github.com/thelaao/phixiv#how-to-use)). If
+`providers` is set, add `"pixiv"` there as well. Omitting `pixivProxyHosts`
+keeps Pixiv disabled without affecting existing preview configuration.
+Existing servers must also enable Pixiv under `/settings` → social previews.
+Supported artwork links are `/artworks/<id>`, `/<language>/artworks/<id>`,
+`/i/<id>` and `/member_illust.php?illust_id=<id>` on `pixiv.net`,
+`www.pixiv.net` or `m.pixiv.net`. They become `/artworks/<id>` on the selected
+proxy, without tracking queries or fragments. Discord expands the validated
+proxy URL; profiles and novels are not previewed.
+
 Previews cover post permalinks plus these short and share forms: Instagram
 `/share/` links, Threads `/share/` links, Facebook `/share/` links, `fb.watch`,
 `/photo/?fbid=` photos and group permalinks, Reddit `redd.it` short links,
