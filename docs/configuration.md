@@ -144,6 +144,7 @@ Plugin settings are validated at startup; strict schemas reject unknown keys.
 | `guild_events.attachment_cache` | nijika, tomori | Enabled; see attachment storage below                                                      |
 | `level_roles`                   | nijika         | `level_<n>` to role-ID map for `/role sync`; a non-ID value disables the command           |
 | `temp_role.maxActivePerMember`  | nijika, tomori | Active temporary roles per creator in a guild; default `3`, integer `1`–`50`               |
+| `alarm.maxActivePerMember`      | nijika         | Pending `/alarm` alarms per creator in a guild; default `5`, integer `1`–`50`              |
 | `bug_report.hub`                | nijika, tomori | Required for `/bug_report`: `guildId` and forum `channelId` receiving every ticket         |
 | `bug_report.tags`               | nijika, tomori | Optional forum tag names for `bug`, `suggestion`, `other`, `open`, `in_progress`, `closed` |
 | `auto_reply`                    | nijika, tomori | Random `[*]` reply probability; `globalLuckyProbability` defaults to `0.005`               |
@@ -522,6 +523,22 @@ transactional, so a crash or database failure after sending can cause duplicates
 
 `/giveaway create` defaults to `destination: current`. `configured` uses
 `guilds.<id>.channels.giveaway` and fails if that destination is unavailable.
+
+### Alarms
+
+Enable the `alarm` command ID for `/alarm set|list|delete`. `/alarm set` posts the
+member's message once in the chosen channel (default: the current one), prefixed
+with an attribution line. `time` accepts a duration (`30m`, `2h`, `1d`), `HH:mm`
+(today, or tomorrow once past), `MM-DD HH:mm` (this year, or next once past) or
+`YYYY-MM-DD HH:mm`, read in the server's time zone; it must be in the future and at
+most 365 days ahead. The member and the bot must both be able to view and send in
+the channel, and the alarm pings `@everyone` and roles only when its creator has
+Mention Everyone there. `alarm.maxActivePerMember` (default `5`, range `1`–`50`)
+caps pending alarms per member. `/alarm list` privately shows the member's own
+alarms; its creator, a configured bot admin or a member with Manage Messages may
+`/alarm delete` one. An alarm fires at most once: its record is removed before
+sending, so a failed send is logged and not retried. Alarms due while the bot was
+down fire once it reconnects.
 
 ### Earthquake alerts and reports
 

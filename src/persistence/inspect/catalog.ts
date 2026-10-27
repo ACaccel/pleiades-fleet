@@ -61,6 +61,7 @@ const SCHEMALESS_COLLECTIONS: readonly string[] = [
 const SUMMARY_FIELDS: Readonly<Record<string, readonly string[]>> = {
   activities: ['title', 'status', 'starts_at'],
   aiusages: ['user_id', 'at'],
+  alarms: ['creator_id', 'channel_id', 'fire_at'],
   archive_channels: ['name', 'access', 'observedAt'],
   archive_inbox: ['kind', 'state', 'observedAt'],
   archive_jobs: ['command', 'status', 'createdAt'],

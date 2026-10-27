@@ -210,6 +210,7 @@
     "unknown_command": "No command named \"{{name}}\".",
     "details": {
       "activity": "`create` opens a form (title, description, start time, sign-up deadline, capacity) and posts the activity here; the optional `role` limits who can join. Members join or withdraw with buttons; participants are pinged when sign-ups close and when it starts. The organizer or a moderator can close sign-ups, start a roll call from the post, or `cancel` it.",
+      "alarm": "`set` posts your message once in a channel at a time such as 30m, 20:30 or 2026-11-01 20:30 (server time zone, up to 365 days ahead); you must be able to post there. `list` shows your pending alarms; `delete` removes yours, and moderators can remove any.",
       "ai": "Chatting needs a whitelist entry from an admin; `settings` picks the model, temperature and system prompt, and `status` shows them.",
       "archive": "Bot admins only, in the debug channel: manage full and periodic backups.",
       "ban_user": "Tomori and Nijika use this server’s configured vote threshold, voting window, eligible roles and default timeout, counting current human voters. Timeouts stay within 1–5 minutes and require Discord moderation permission. Other personalities retain their existing defaults.",
@@ -835,6 +836,24 @@
     "not_temp_role": "That is not a temporary role.",
     "cancel_forbidden": "Only its creator or a member who manages roles can delete it."
   },
+  "alarm": {
+    "created": "⏰ Alarm set: it will post in {{channel}} at {{time}} ({{relative}}).",
+    "fired": "⏰ Alarm from {{creator}}:\n{{message}}",
+    "invalid_time": "Unrecognised time. Use a duration such as 30m / 2h / 1d, or a time such as 20:30, 11-01 20:30 or 2026-11-01 20:30.",
+    "time_in_past": "That time has already passed; pick a time in the future.",
+    "time_too_far": "An alarm can be set at most {{max}} days ahead.",
+    "missing_message": "Please provide a message.",
+    "member_cannot_send": "You cannot send messages in that channel, so an alarm cannot post there.",
+    "bot_cannot_send": "I cannot send messages in that channel; pick another channel or ask a moderator to grant access.",
+    "too_many": "You can have at most {{max}} pending alarms at once.",
+    "failed": "Could not complete the alarm request (error code: {{traceId}})",
+    "list_empty": "You have no pending alarms.",
+    "list_header": "Your pending alarms ({{count}}):",
+    "list_line": "{{time}} in {{channel}}: {{message}}",
+    "cancelled": "Alarm deleted.",
+    "not_found": "That alarm does not exist; it may have already gone off or been deleted.",
+    "cancel_forbidden": "Only its creator or a member who manages messages can delete it."
+  },
   "toggle_role": {
     "role_not_found": "Role not found; it may have been deleted.",
     "added": "Added the role {{role}} to you.",
@@ -1164,6 +1183,7 @@
     "collections": {
       "activities": "Activities and sign-ups",
       "aiusages": "AI usage records",
+      "alarms": "Alarms",
       "archive_channels": "Archived channel details",
       "archive_control_confirmations": "Archive control confirmations",
       "archive_gateway_continuity": "Live capture continuity",

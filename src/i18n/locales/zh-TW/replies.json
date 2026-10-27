@@ -210,6 +210,7 @@
     "unknown_command": "找不到指令「{{name}}」",
     "details": {
       "activity": "`create` 在目前頻道發起活動並開啟表單(標題、說明、開始時間、報名截止、人數上限),選填 `role` 限定只有該身分組能報名。成員按按鈕報名或取消;截止時會通知參加者,有開始時間的話開始時也會提醒。發起人或管理員可以在活動訊息上結束報名、發起點名,或用 `cancel` 取消活動。",
+      "alarm": "`set` 在指定時間於頻道發送一次你的訊息,時間可填 30m、20:30 或 2026-11-01 20:30(伺服器時區,最多 365 天內),你必須能在該頻道發言;`list` 列出你尚未觸發的鬧鐘;`delete` 刪除自己的鬧鐘,管理員可以刪除任何鬧鐘。",
       "ai": "與 AI 對話需要先被管理員加入白名單;`settings` 設定模型、溫度與系統提示,`status` 查看目前設定。",
       "archive": "僅限 bot 管理員在除錯頻道使用,管理完整備份與日常備份。",
       "ban_user": "Tomori 與 Nijika 依照此伺服器設定的通過票數、投票時間、可投票身分組與預設時間發起投票，只計算目前符合資格的真人成員。禁言時間為 1–5 分鐘，並遵守 Discord 管理權限。其他人格維持既有預設值。",
@@ -835,6 +836,24 @@
     "not_temp_role": "這不是暫時通知身分組",
     "cancel_forbidden": "只有建立者或能管理身分組的成員可以刪除它"
   },
+  "alarm": {
+    "created": "⏰ 鬧鐘已設定:將於 {{time}}({{relative}})在 {{channel}} 發送。",
+    "fired": "⏰ {{creator}} 的鬧鐘:\n{{message}}",
+    "invalid_time": "無法辨識的時間。請輸入 30m / 2h / 1d 這類時長,或 20:30、11-01 20:30、2026-11-01 20:30 這類時間。",
+    "time_in_past": "這個時間已經過了,請選擇未來的時間。",
+    "time_too_far": "鬧鐘最多只能設定在 {{max}} 天內。",
+    "missing_message": "請輸入訊息內容。",
+    "member_cannot_send": "你在那個頻道沒有發言權限,所以無法在那裡設鬧鐘。",
+    "bot_cannot_send": "我在那個頻道沒有發言權限,請換個頻道或請管理員開放權限。",
+    "too_many": "你同時最多只能有 {{max}} 個尚未觸發的鬧鐘",
+    "failed": "鬧鐘操作失敗了 (錯誤代碼:{{traceId}})",
+    "list_empty": "你目前沒有尚未觸發的鬧鐘",
+    "list_header": "你尚未觸發的鬧鐘(共 {{count}} 個):",
+    "list_line": "{{time}} 於 {{channel}}:{{message}}",
+    "cancelled": "鬧鐘已刪除",
+    "not_found": "找不到這個鬧鐘,可能已經響過或被刪除了",
+    "cancel_forbidden": "只有建立者或能管理訊息的成員可以刪除它"
+  },
   "toggle_role": {
     "role_not_found": "找不到該身分組,可能已被刪除。",
     "added": "已為你加上身分組 {{role}}。",
@@ -1164,6 +1183,7 @@
     "collections": {
       "activities": "活動與報名",
       "aiusages": "AI 使用紀錄",
+      "alarms": "鬧鐘",
       "archive_channels": "備份的頻道資訊",
       "archive_control_confirmations": "備份操作確認",
       "archive_gateway_continuity": "即時擷取的連續性紀錄",

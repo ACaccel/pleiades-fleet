@@ -38,6 +38,7 @@ import {
 } from './thread-message-source.schema';
 import { threadModerationSchema, type ThreadModerationDoc } from './thread-moderation.schema';
 import { userApiSettingSchema, type UserApiSettingDoc } from './user-api-setting.schema';
+import { alarmSchema, type AlarmDoc } from './alarm.schema';
 export * from './archive.schema';
 export {
   guildSettingsSchema,
@@ -47,6 +48,7 @@ export {
 } from './guild-settings.schema';
 
 export { activitySchema, type ActivityDoc } from './activity.schema';
+export { alarmSchema, type AlarmDoc } from './alarm.schema';
 export { aiUsageSchema, type AiUsageDoc } from './ai-usage.schema';
 export { bugTicketSchema, type BugTicketDoc } from './bug-ticket.schema';
 export {
@@ -88,6 +90,7 @@ export const SCHEMAS = {
   GayReading: gayReadingSchema,
   Activity: activitySchema,
   TempRole: tempRoleSchema,
+  Alarm: alarmSchema,
   ThreadModeration: threadModerationSchema,
   ThreadMessageSource: threadMessageSourceSchema,
   UserApiSetting: userApiSettingSchema,
@@ -119,6 +122,7 @@ export interface DocByName {
   GayReading: GayReadingDoc;
   Activity: ActivityDoc;
   TempRole: TempRoleDoc;
+  Alarm: AlarmDoc;
   ThreadModeration: ThreadModerationDoc;
   ThreadMessageSource: ThreadMessageSourceDoc;
   UserApiSetting: UserApiSettingDoc;

@@ -252,6 +252,36 @@
       }
     }
   },
+  "alarm": {
+    "description": "Set one-time alarms that post a message in a channel",
+    "subcommands": {
+      "set": {
+        "description": "Post a message in a channel once, at a chosen time",
+        "options": {
+          "time": {
+            "description": "When: 30m / 2h / 1d, 20:30, 11-01 20:30 or 2026-11-01 20:30 (server time zone)"
+          },
+          "message": {
+            "description": "Message to post when the alarm goes off"
+          },
+          "channel": {
+            "description": "Channel to post in (default: this channel)"
+          }
+        }
+      },
+      "list": {
+        "description": "List your pending alarms"
+      },
+      "delete": {
+        "description": "Delete a pending alarm (its creator or a moderator)",
+        "options": {
+          "alarm": {
+            "description": "Alarm to delete"
+          }
+        }
+      }
+    }
+  },
   "giveaway": {
     "description": "Manage giveaways",
     "subcommands": {

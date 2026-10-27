@@ -13,13 +13,13 @@ system, with English and Traditional Chinese replies throughout.
 Each bot is a composition root under [`src/bot/<bot>/`](src/bot/) that extends the
 shared `BaseBot` and registers its own plugins and services.
 
-| Bot           | Run                   | Required environment              | What the implementation wires                                                                                                                                                                                                                                                                              |
-| ------------- | --------------------- | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `nijika`      | `npm run nijika`      | `TOKEN`, `CLIENT_ID`, `MONGO_URI` | Automatic replies, event mirroring, social-link previews, giveaways, activities and temporary roles, plus social-feed polling with its platform registry, an optional loopback [earthquake early-warning API](docs/configuration.md#early-warning-api) and CWA earthquake reports (optional `CWA_API_KEY`) |
-| `tomori`      | `npm run tomori`      | `TOKEN`, `CLIENT_ID`, `MONGO_URI` | Automatic replies, event mirroring, social-link previews, giveaways, activities and temporary roles, plus social-feed polling and optional earthquake early warnings/CWA reports; earthquake delivery starts off and is configured per server in `/settings`                                               |
-| `konata`      | `npm run konata`      | `TOKEN`, `CLIENT_ID`, `MONGO_URI` | LLM chat for whitelisted users (a mention starts a session, a reply continues it), an online presence and an optional loopback [notification relay API](docs/configuration.md#notification-relay-api); the guild-join listener is off                                                                      |
-| `gopher`      | `npm run gopher`      | `TOKEN`, `CLIENT_ID`              | Self-hosted LLM auto-replies and daily avatar/nickname sync; no database. [Endpoint changes](docs/configuration.md#gopher-llm-endpoint) take effect after a restart                                                                                                                                        |
-| `msg-archive` | `npm run msg-archive` | `TOKEN`, `CLIENT_ID`, `MONGO_URI` | The only [message archive](docs/message-archive.md) writer: live capture, periodic and full backups, and archive control; it exposes exactly `/archive`                                                                                                                                                    |
+| Bot           | Run                   | Required environment              | What the implementation wires                                                                                                                                                                                                                                                                                               |
+| ------------- | --------------------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `nijika`      | `npm run nijika`      | `TOKEN`, `CLIENT_ID`, `MONGO_URI` | Automatic replies, event mirroring, social-link previews, giveaways, activities, temporary roles and one-shot alarms, plus social-feed polling with its platform registry, an optional loopback [earthquake early-warning API](docs/configuration.md#early-warning-api) and CWA earthquake reports (optional `CWA_API_KEY`) |
+| `tomori`      | `npm run tomori`      | `TOKEN`, `CLIENT_ID`, `MONGO_URI` | Automatic replies, event mirroring, social-link previews, giveaways, activities and temporary roles, plus social-feed polling and optional earthquake early warnings/CWA reports; earthquake delivery starts off and is configured per server in `/settings`                                                                |
+| `konata`      | `npm run konata`      | `TOKEN`, `CLIENT_ID`, `MONGO_URI` | LLM chat for whitelisted users (a mention starts a session, a reply continues it), an online presence and an optional loopback [notification relay API](docs/configuration.md#notification-relay-api); the guild-join listener is off                                                                                       |
+| `gopher`      | `npm run gopher`      | `TOKEN`, `CLIENT_ID`              | Self-hosted LLM auto-replies and daily avatar/nickname sync; no database. [Endpoint changes](docs/configuration.md#gopher-llm-endpoint) take effect after a restart                                                                                                                                                         |
+| `msg-archive` | `npm run msg-archive` | `TOKEN`, `CLIENT_ID`, `MONGO_URI` | The only [message archive](docs/message-archive.md) writer: live capture, periodic and full backups, and archive control; it exposes exactly `/archive`                                                                                                                                                                     |
 
 Event mirroring posts message edits, deletions and role changes to a guild's event
 channel and keeps deleted attachments through an attachment cache. LLM providers
@@ -57,7 +57,7 @@ Every bot shares the framework capabilities:
   [thread moderation](docs/thread-moderation.md) with paginated ban lists,
   delegated management approved by DM and deletion of attributable bot replies.
 - **Community tools.** Giveaways, activities, temporary notification roles,
-  role-claim messages, level roles and restaurant picks. `/give_score` (also a
+  one-shot channel alarms, role-claim messages, level roles and restaurant picks. `/give_score` (also a
   message menu) and `/gay` give daily readings in the bot's configured time zone, with member and
   pair options and mention-safe replies. [`/gay`](docs/fun-readings.md) optionally uses archived
   activity and mutual interactions, with bounded queries and stored daily results.
@@ -151,15 +151,15 @@ actions are grouped under one root. `/help` shows a private root-command overvie
 with a category selector, whose first entry returns to the overview; `/help command:<name>`
 lists that command's paths and options. Admin-only paths are hidden from non-admins.
 
-| Area              | Commands                                                                                                    |
-| ----------------- | ----------------------------------------------------------------------------------------------------------- |
-| Grouped roots     | `/activity`, `/ai`, `/feed`, `/giveaway`, `/reply`, `/role`, `/thread`, `/traffic`, `/archive`, `/settings` |
-| Activity reports  | `/traffic overview`, `channel`, `me`, `user`, `apps`, `emoji`, `sticker`                                    |
-| Server and roles  | `/role`, `/level_detail`, `/roll_call`, `/ban_user`                                                         |
-| Bot persona       | `/talk`, `/change_avatar`                                                                                   |
-| Utilities and fun | `/help`, `/bug_report`, `/random_restaurant`, `/give_score`, `/gay`                                         |
-| Administration    | `/db stats`, `schema`, `list`, `get` (nijika only)                                                          |
-| Context menus     | Get avatar (from a member or a message author), get sticker, score a message                                |
+| Area              | Commands                                                                                                              |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Grouped roots     | `/activity`, `/alarm`, `/ai`, `/feed`, `/giveaway`, `/reply`, `/role`, `/thread`, `/traffic`, `/archive`, `/settings` |
+| Activity reports  | `/traffic overview`, `channel`, `me`, `user`, `apps`, `emoji`, `sticker`                                              |
+| Server and roles  | `/role`, `/level_detail`, `/roll_call`, `/ban_user`                                                                   |
+| Bot persona       | `/talk`, `/change_avatar`                                                                                             |
+| Utilities and fun | `/help`, `/bug_report`, `/random_restaurant`, `/give_score`, `/gay`                                                   |
+| Administration    | `/db stats`, `schema`, `list`, `get` (nijika only)                                                                    |
+| Context menus     | Get avatar (from a member or a message author), get sticker, score a message                                          |
 
 Upgrading from standalone commands such as `/feed_subscribe`, or from the removed
 `/emoji_frequency`, `/sticker_frequency` and `/db_list_message`? See

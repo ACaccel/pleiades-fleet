@@ -252,6 +252,36 @@
       }
     }
   },
+  "alarm": {
+    "description": "設定單次鬧鐘,時間到在頻道發送訊息",
+    "subcommands": {
+      "set": {
+        "description": "在指定時間於頻道發送一次訊息",
+        "options": {
+          "time": {
+            "description": "時間:30m / 2h / 1d、20:30、11-01 20:30 或 2026-11-01 20:30(伺服器時區)"
+          },
+          "message": {
+            "description": "鬧鐘響時要發送的訊息"
+          },
+          "channel": {
+            "description": "要發送的頻道(預設為目前頻道)"
+          }
+        }
+      },
+      "list": {
+        "description": "列出你尚未觸發的鬧鐘"
+      },
+      "delete": {
+        "description": "刪除尚未觸發的鬧鐘(建立者或管理員)",
+        "options": {
+          "alarm": {
+            "description": "要刪除的鬧鐘"
+          }
+        }
+      }
+    }
+  },
   "giveaway": {
     "description": "管理抽獎",
     "subcommands": {

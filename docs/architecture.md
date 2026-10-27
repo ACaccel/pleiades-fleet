@@ -137,6 +137,12 @@ reminder more than an hour late is skipped, and a roll call past its deadline
 closes and records attendance on its activity. Closed records expire after seven
 days through TTL indexes.
 
+`/alarm` alarms are one-shot and persisted per guild; the alarm plugin rebuilds
+their jobs on startup and database recovery, firing any that fell due while the
+bot was down. A firing deletes the record before posting, so concurrent paths and
+restarts cannot repeat an alarm. Creation is serialized per guild within each
+process to enforce the per-member cap.
+
 Self-service role buttons grant only roles that pass
 [`isSelfAssignableRole`](../src/infra/discord/self-assignable-role.ts): below the
 bot's highest role, not integration-managed, and without moderation or

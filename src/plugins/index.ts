@@ -10,6 +10,7 @@ export { createAutoReplyPlugin } from './auto-reply';
 export { createGuildEventsPlugin } from './guild-events';
 export { createGiveawayPlugin } from './giveaway';
 export { createTempRolePlugin } from './temp-role';
+export { createAlarmPlugin } from './alarm';
 export { createActivityPlugin } from './activity';
 export { createMessageBackupPlugin } from './message-backup';
 export { createLlmChatPlugin } from './llm-chat';

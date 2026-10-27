@@ -5,6 +5,7 @@ import { BaseBot } from '@bot';
 import {
   createAutoReplyPlugin,
   createActivityPlugin,
+  createAlarmPlugin,
   createBugReportPlugin,
   createDbInspectPlugin,
   createEarthquakePlugin,
@@ -120,6 +121,8 @@ export class Nijika extends BaseBot<NijikaConfig> {
     // Temporary, permission-less notification roles with a self-claim
     // button and a hard 30-day expiry (see `createTempRolePlugin`).
     this.use(createTempRolePlugin());
+    // One-shot `/alarm` messages; rebuilds pending jobs on boot.
+    this.use(createAlarmPlugin());
     // `/bug_report` tickets: relay between the hub forum and reporters' DMs.
     this.use(
       createBugReportPlugin({

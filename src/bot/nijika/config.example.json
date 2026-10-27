@@ -62,6 +62,7 @@
     "settings",
     "help",
     "activity",
+    "alarm",
     "ban_user",
     "bug_report",
     "change_avatar",
@@ -164,5 +165,8 @@
   },
   "temp_role": {
     "maxActivePerMember": 3
+  },
+  "alarm": {
+    "maxActivePerMember": 5
   }
 }
