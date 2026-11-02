@@ -1,14 +1,18 @@
-import type { ChatInputCommandInteraction, GuildBasedChannel } from 'discord.js';
+import type { Attachment, ChatInputCommandInteraction, GuildBasedChannel } from 'discord.js';
 import { MessageFlags, PermissionFlagsBits } from 'discord.js';
 import type { BaseBot } from '@bot';
 import { Command } from '@cmd';
 
 import { replyForError } from '../../../infra/discord/reply-for-error';
-import { getRequiredString } from '../../../infra/discord/options';
+import { getOptionalString } from '../../../infra/discord/options';
 import { ancestorChannelIdsOf } from '../../../infra/discord';
 
 /** Leaves room for the `displayName(username): ` signature under Discord's 2000 limit. */
 const MAX_CONTENT_LENGTH = 1900;
+const FILE_OPTIONS = ['file1', 'file2', 'file3', 'file4', 'file5'] as const;
+/** Discord's per-file upload limit in a server without boosts. */
+const MAX_FILE_MIB = 20;
+const MAX_FILE_BYTES = MAX_FILE_MIB * 1024 * 1024;
 
 export default class talk extends Command {
   constructor() {
@@ -18,9 +22,10 @@ export default class talk extends Command {
       category: 'fun',
       guildOnly: true,
       options: {
-        string: [{ name: 'content', required: true, maxLength: MAX_CONTENT_LENGTH }],
+        string: [{ name: 'content', required: false, maxLength: MAX_CONTENT_LENGTH }],
         channel: [{ name: 'channel', required: false }],
         boolean: [{ name: 'anonymous', required: false }],
+        attachment: FILE_OPTIONS.map((name) => ({ name, required: false })),
       },
     });
   }
@@ -33,7 +38,20 @@ export default class talk extends Command {
       bot.translator?.t(key, params) ?? '';
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     try {
-      const content = getRequiredString(interaction, 'content');
+      const content = getOptionalString(interaction, 'content') ?? '';
+      const files = FILE_OPTIONS.map((name) => interaction.options.getAttachment(name)).filter(
+        (file): file is Attachment => file !== null,
+      );
+      if (content === '' && files.length === 0) {
+        await interaction.editReply({ content: t('replies:talk.empty') });
+        return;
+      }
+      if (files.some((file) => file.size > MAX_FILE_BYTES)) {
+        await interaction.editReply({
+          content: t('replies:talk.file_too_large', { limit: String(MAX_FILE_MIB) }),
+        });
+        return;
+      }
       const anonymous = interaction.options.getBoolean('anonymous') === true;
       // Unsigned speech is untraceable to members, so only bot admins may use it.
       if (anonymous && !bot.isAdmin(interaction.user.id)) {
@@ -77,8 +95,13 @@ export default class talk extends Command {
           allowedMentions: { parse: [] },
         });
       } else {
+        const signed = `${displayName}(${username}):${content === '' ? '' : ` ${content}`}`;
+        const text = anonymous ? content : signed;
         await channel.send({
-          content: anonymous ? content : `${displayName}(${username}): ${content}`,
+          ...(text === '' ? {} : { content: text }),
+          ...(files.length === 0
+            ? {}
+            : { files: files.map((file) => ({ attachment: file.url, name: file.name })) }),
           allowedMentions: { parse: ['users', 'roles'] },
         });
         if (anonymous) {

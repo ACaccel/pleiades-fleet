@@ -94,6 +94,13 @@ interface ResolvedUserOption {
   readonly username?: string;
 }
 
+/** The structural minimum a resolved attachment option needs. */
+interface ResolvedAttachmentOption {
+  readonly url: string;
+  readonly name: string;
+  readonly size: number;
+}
+
 /**
  * `interaction.memberPermissions` answering from a flag list; `null`
  * outside a guild, as discord.js reports it.
@@ -138,6 +145,8 @@ interface BuildChatInputInteractionInput {
   readonly channels?: Readonly<Record<string, ResolvedChannelOption>>;
   /** Values `options.getUser(name)` resolves, keyed by option name. */
   readonly users?: Readonly<Record<string, ResolvedUserOption>>;
+  /** Values `options.getAttachment(name)` resolves, keyed by option name. */
+  readonly attachments?: Readonly<Record<string, ResolvedAttachmentOption>>;
   /** The invoking channel; also backs `interaction.channelId`. */
   readonly channel?: InvokingChannel | null;
   /** Overrides the default `buildGuild({ id: guildId })`. */
@@ -175,6 +184,7 @@ export const buildChatInputInteraction = (
   const options = input.options ?? {};
   const channels = input.channels ?? {};
   const users = input.users ?? {};
+  const attachments = input.attachments ?? {};
   // A guild passed explicitly is authoritative for both fields, so
   // `interaction.guild.id` and `interaction.guildId` cannot disagree.
   const guild =
@@ -208,6 +218,7 @@ export const buildChatInputInteraction = (
       getInteger: (name: string) => (options[name] as number | undefined) ?? null,
       getBoolean: (name: string) => (options[name] as boolean | undefined) ?? null,
       getChannel: (name: string) => channels[name] ?? null,
+      getAttachment: (name: string) => attachments[name] ?? null,
       // discord.js throws for a missing required option rather than
       // returning null, so a handler relying on `required` sees the same.
       getUser: (name: string, required?: boolean) => {

@@ -1,7 +1,8 @@
 /**
  * `/talk` posts signed by default; only bot admins may post anonymously,
  * and a member can only post where they could post themselves. Members
- * and roles may be pinged, `@everyone` and `@here` never.
+ * and roles may be pinged, `@everyone` and `@here` never. Up to five
+ * files ride along, each within the unboosted-server upload limit.
  */
 import { describe, expect, it, vi } from 'vitest';
 
@@ -32,10 +33,23 @@ const channel = (id: string, canPost: boolean) => {
   };
 };
 
+interface Attached {
+  readonly url: string;
+  readonly name: string;
+  readonly size: number;
+}
+
+const file = (name: string, size = 1024): Attached => ({
+  url: `https://cdn.example/${name}`,
+  name,
+  size,
+});
+
 interface Options {
-  readonly content: string;
+  readonly content?: string;
   readonly channel?: string;
   readonly anonymous?: boolean;
+  readonly files?: Readonly<Record<string, Attached>>;
 }
 
 const build = (options: Options, { isAdmin = false, canPostElsewhere = true } = {}) => {
@@ -54,8 +68,9 @@ const build = (options: Options, { isAdmin = false, canPostElsewhere = true } = 
     guild,
     channel: here,
     channels: options.channel === undefined ? {} : { channel: { id: options.channel } },
+    ...(options.files === undefined ? {} : { attachments: options.files }),
     options: {
-      content: options.content,
+      ...(options.content === undefined ? {} : { content: options.content }),
       ...(options.anonymous === undefined ? {} : { anonymous: options.anonymous }),
     },
     sink,
@@ -132,6 +147,73 @@ describe('/talk', () => {
     await new Talk().execute(refused.interaction, refused.bot);
     expect(refused.elsewhere.sent).toEqual([]);
     expect(refused.sink.editReplies).toEqual([{ content: 'replies:talk.channel_not_allowed' }]);
+  });
+
+  it('re-uploads every attached file under the signed text', async () => {
+    const { interaction, bot, here, sink } = build({
+      content: 'look',
+      files: { file1: file('a.png'), file5: file('b.pdf') },
+    });
+
+    await new Talk().execute(interaction, bot);
+
+    expect(here.sent).toEqual([
+      {
+        content: 'Speaker(speaker): look',
+        files: [
+          { attachment: 'https://cdn.example/a.png', name: 'a.png' },
+          { attachment: 'https://cdn.example/b.pdf', name: 'b.pdf' },
+        ],
+        allowedMentions: { parse: ['users', 'roles'] },
+      },
+    ]);
+    expect(sink.deletes).toEqual(['@original']);
+  });
+
+  it('posts files without text, signed or anonymous', async () => {
+    const signed = build({ files: { file1: file('a.png') } });
+    await new Talk().execute(signed.interaction, signed.bot);
+    expect(signed.here.sent).toEqual([
+      expect.objectContaining({ content: 'Speaker(speaker):', files: [expect.anything()] }),
+    ]);
+
+    const anonymous = build(
+      { anonymous: true, files: { file1: file('a.png') } },
+      { isAdmin: true },
+    );
+    await new Talk().execute(anonymous.interaction, anonymous.bot);
+    expect(anonymous.here.sent).toEqual([
+      {
+        files: [{ attachment: 'https://cdn.example/a.png', name: 'a.png' }],
+        allowedMentions: { parse: ['users', 'roles'] },
+      },
+    ]);
+  });
+
+  it('refuses a request with neither text nor files', async () => {
+    const { interaction, bot, here, sink } = build({});
+
+    await new Talk().execute(interaction, bot);
+
+    expect(here.sent).toEqual([]);
+    expect(sink.editReplies).toEqual([{ content: 'replies:talk.empty' }]);
+  });
+
+  it('refuses the whole message when any file exceeds 20 MiB', async () => {
+    const limit = 20 * 1024 * 1024;
+    const atLimit = build({ files: { file1: file('ok.bin', limit) } });
+    await new Talk().execute(atLimit.interaction, atLimit.bot);
+    expect(atLimit.here.sent).toHaveLength(1);
+
+    const over = build({
+      content: 'hi',
+      files: { file1: file('ok.bin'), file2: file('big.bin', limit + 1) },
+    });
+    await new Talk().execute(over.interaction, over.bot);
+    expect(over.here.sent).toEqual([]);
+    expect(over.sink.editReplies).toEqual([
+      { content: 'replies:talk.file_too_large:{"limit":"20"}' },
+    ]);
   });
 
   it('replaces an @everyone message with a warning that pings nobody', async () => {

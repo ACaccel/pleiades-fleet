@@ -182,7 +182,9 @@ changes, with a ten-minute cooldown per guild; an unavailable leaderboard resets
 the cooldown for a retry.
 
 `/talk` signs messages by default, accepts an optional destination channel and
-requires the member to be able to post there. `anonymous:true` requires a bot
+requires the member to be able to post there. It attaches up to five files
+(`file1`–`file5`), each at most 20 MiB (Discord's limit for a server without
+boosts); `content` is optional when a file is attached. `anonymous:true` requires a bot
 admin and records the sender in logs. Messages may ping members and roles;
 `@everyone` or `@here` text produces a warning without any pings.
 

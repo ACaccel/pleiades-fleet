@@ -229,7 +229,7 @@
       "reply": "`add` 新增後,有人發出與關鍵字**完全相同**的訊息時 bot 會回覆;關鍵字填 `[*]` 代表 bot 偶爾隨機插話。回覆內容不會 tag 任何人。`delete` 只能刪除自己新增的回覆,能管理訊息的成員可刪除全部。",
       "role": "`panel` 張貼身分組領取按鈕(需管理身分組權限,只能放低於你和 bot 的一般身分組);`temp` 建立會自動過期的通知身分組,每人同時最多 3 個;`sync` 依 MEE6 等級同步等級身分組,每 10 分鐘最多一次。",
       "roll_call": "點名 `users`、`role` 或某個 `activity` 的參加者(上限 50 人,不能點 @everyone)。被點到的人按「簽到」;`deadline` 到期或發起人按「結束點名」後會列出缺席者。從活動發起的點名,出席人數會顯示在活動訊息上。",
-      "talk": "預設會署名「暱稱(帳號)」;`channel` 可以發到其他頻道,但你本人必須能在該頻道發言。可以 tag 成員與身分組,不能 @everyone/@here。`anonymous` 不署名發送,僅限 bot 管理員。",
+      "talk": "預設會署名「暱稱(帳號)」;`channel` 可以發到其他頻道,但你本人必須能在該頻道發言。可以 tag 成員與身分組,不能 @everyone/@here。`anonymous` 不署名發送,僅限 bot 管理員。`file1`–`file5` 最多可附五個檔案,每個最大 20 MB;有附檔案時 `content` 可省略。",
       "thread": "`ban`/`allow`/`list` 在討論串內由擁有者、代理管理者或 bot 管理員使用;`claim` 申請成為代理管理者;`manager` 僅 bot 管理員。",
       "traffic": "統計看得到的頻道活動;`user` 預設只有你看得到,其他子命令預設公開,可用 `visibility` 調整。",
       "db": "僅限 bot 管理員使用，只在 Nijika 提供。唯讀查看所有伺服器的資料庫：統計、欄位、瀏覽與篩選、單筆內容；每個選項都有選單可選，也可以在 DM 中使用。",
@@ -324,7 +324,9 @@
   "talk": {
     "tag_warning": "{{displayName}}({{username}})好壞喔被我抓到你在 tag 所有人",
     "failed": "唔...訊息送不出去耶,稍後再試一次看看吧!(錯誤代碼:{{traceId}})",
-    "channel_not_allowed": "你沒有在那個頻道發言的權限,或 bot 無法在那裡發言"
+    "channel_not_allowed": "你沒有在那個頻道發言的權限,或 bot 無法在那裡發言",
+    "empty": "要說點什麼,或附個檔案喔",
+    "file_too_large": "每個檔案最大 {{limit}} MB"
   },
   "traffic": {
     "failed": "無法產生流量報告 (錯誤代碼:{{traceId}})",

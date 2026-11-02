@@ -118,13 +118,28 @@
     "description": "Have the bot speak for you (signed by default)",
     "options": {
       "content": {
-        "description": "What to say (up to 1900 characters)"
+        "description": "What to say (up to 1900 characters; optional with a file)"
       },
       "channel": {
         "description": "Channel to post in (defaults to this channel)"
       },
       "anonymous": {
         "description": "Post without your signature (bot admins only)"
+      },
+      "file1": {
+        "description": "File 1 to attach (up to 20 MB)"
+      },
+      "file2": {
+        "description": "File 2 to attach (up to 20 MB)"
+      },
+      "file3": {
+        "description": "File 3 to attach (up to 20 MB)"
+      },
+      "file4": {
+        "description": "File 4 to attach (up to 20 MB)"
+      },
+      "file5": {
+        "description": "File 5 to attach (up to 20 MB)"
       }
     }
   },

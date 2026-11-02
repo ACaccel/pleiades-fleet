@@ -118,13 +118,28 @@
     "description": "讓 bot 代你發言(預設會署名)",
     "options": {
       "content": {
-        "description": "要說的話(最多 1900 字)"
+        "description": "要說的話(最多 1900 字;有附檔案時可省略)"
       },
       "channel": {
         "description": "發送到哪個頻道(預設為目前頻道)"
       },
       "anonymous": {
         "description": "不署名發送(僅 bot 管理員)"
+      },
+      "file1": {
+        "description": "要附上的第 1 個檔案(最大 20 MB)"
+      },
+      "file2": {
+        "description": "要附上的第 2 個檔案(最大 20 MB)"
+      },
+      "file3": {
+        "description": "要附上的第 3 個檔案(最大 20 MB)"
+      },
+      "file4": {
+        "description": "要附上的第 4 個檔案(最大 20 MB)"
+      },
+      "file5": {
+        "description": "要附上的第 5 個檔案(最大 20 MB)"
       }
     }
   },

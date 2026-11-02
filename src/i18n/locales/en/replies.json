@@ -229,7 +229,7 @@
       "reply": "After `add`, the bot answers any message **exactly** matching the keyword; the keyword `[*]` makes the bot interject at random. Replies never ping anyone. `delete` removes your own pairs; members who manage messages can remove any.",
       "role": "`panel` posts role buttons (requires Manage Roles; only ordinary roles below you and the bot); `temp` creates notification roles that expire, up to three active per member; `sync` syncs MEE6 level roles, at most once every ten minutes.",
       "roll_call": "Call `users`, a `role`, or an `activity`'s participants (up to 50; no @everyone). Called members press Check in; when the `deadline` passes or the caller closes it, absentees are listed. A roll call taken from an activity shows its attendance on the activity post.",
-      "talk": "Signed as \"display name(username)\" by default; `channel` posts elsewhere, but only where you can post yourself. Members and roles can be pinged, @everyone/@here cannot. `anonymous` posts unsigned, bot admins only.",
+      "talk": "Signed as \"display name(username)\" by default; `channel` posts elsewhere, but only where you can post yourself. Members and roles can be pinged, @everyone/@here cannot. `anonymous` posts unsigned, bot admins only. `file1`–`file5` attach up to five files of at most 20 MB each; `content` is optional when a file is attached.",
       "thread": "`ban`/`allow`/`list` run inside a thread for its owner, delegates and bot admins; `claim` requests delegated management; `manager` is for bot admins.",
       "traffic": "Counts activity in channels you can see; `user` is private by default, the others public, and `visibility` changes either.",
       "db": "Bot admins only, on Nijika. A read-only view of every guild database: statistics, fields, browsing with filters, and single documents. Every option offers a list to pick from, and it works in DMs.",
@@ -324,7 +324,9 @@
   "talk": {
     "tag_warning": "{{displayName}} ({{username}}), you naughty one — I caught you tagging everyone.",
     "failed": "Hmm... the message couldn't be sent. Give it another try later! (error code: {{traceId}})",
-    "channel_not_allowed": "You cannot post in that channel, or the bot cannot."
+    "channel_not_allowed": "You cannot post in that channel, or the bot cannot.",
+    "empty": "Give me something to say or a file to attach.",
+    "file_too_large": "Each file can be at most {{limit}} MB."
   },
   "traffic": {
     "failed": "Could not build the traffic report. (error code: {{traceId}})",
