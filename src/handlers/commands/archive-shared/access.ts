@@ -10,7 +10,7 @@ import type { ArchiveControl } from '../../../application/archive/control';
 export const archiveConfig = z.object({
   backup_server: z.array(z.string().min(1)),
   backup_interval_minutes: z.number().int().positive().max(35_791).optional(),
-  archive_policy: z.record(z.unknown()).optional(),
+  archive_policy: z.record(z.string(), z.unknown()).optional(),
 });
 export interface ArchiveAccess {
   readonly guildId: string;

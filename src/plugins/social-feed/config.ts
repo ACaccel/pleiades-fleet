@@ -67,7 +67,7 @@ const ConfigSchema = z
      * operator turns one off. Owned by `infra/social-feed` so the
      * composition root can build its registry from the same schema.
      */
-    platforms: FeedPlatformsSchema.default({}),
+    platforms: FeedPlatformsSchema.prefault({}),
   })
   .strict()
   .superRefine((value, ctx) => {

@@ -147,7 +147,7 @@ export function validateRelease(input: unknown, root: string): Release {
       prefix: absolutePath,
       fontDirectory: absolutePath.optional(),
       config: deploymentSchema,
-      units: z.record(z.string()),
+      units: z.record(z.string(), z.string()),
     })
     .strict()
     .parse(input);

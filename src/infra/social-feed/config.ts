@@ -81,6 +81,6 @@ export type FeedPlatformsConfig = z.infer<typeof FeedPlatformsSchema>;
  */
 export const parseFeedPlatformsConfig = (rawSocialFeedBlock: unknown): FeedPlatformsConfig =>
   z
-    .object({ platforms: FeedPlatformsSchema.default({}) })
+    .object({ platforms: FeedPlatformsSchema.prefault({}) })
     .passthrough()
     .parse(rawSocialFeedBlock ?? {}).platforms;

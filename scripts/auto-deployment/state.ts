@@ -22,7 +22,7 @@ const timestamp = z.number().finite().nonnegative();
 const schema = z
   .object({
     version: z.literal(1),
-    deployed: z.record(z.enum(AUTO_BOTS), sha),
+    deployed: z.partialRecord(z.enum(AUTO_BOTS), sha),
     lastInspectedSha: sha.optional(),
     attemptedSha: sha.optional(),
     attempt: z.number().int().nonnegative(),

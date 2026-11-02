@@ -10,10 +10,11 @@ const settings = z
     language: z.string().optional(),
     guilds: z
       .record(
+        z.string(),
         z
           .object({
-            channels: z.record(z.string()).optional(),
-            roles: z.record(z.string()).optional(),
+            channels: z.record(z.string(), z.string()).optional(),
+            roles: z.record(z.string(), z.string()).optional(),
           })
           .passthrough(),
       )

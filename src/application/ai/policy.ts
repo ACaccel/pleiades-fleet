@@ -25,7 +25,7 @@ const PolicySchema = z
         models: z
           .object({
             default: ModelRefSchema,
-            allowed: z.record(z.enum(PROVIDERS), z.array(ModelNameSchema).min(1).max(25)),
+            allowed: z.partialRecord(z.enum(PROVIDERS), z.array(ModelNameSchema).min(1).max(25)),
           })
           .strict()
           .optional(),

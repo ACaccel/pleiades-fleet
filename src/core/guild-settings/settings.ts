@@ -68,18 +68,18 @@ const generalSettingsSchema = z
     timeZone: z.string().min(1).max(100).refine(isTimeZone).nullable(),
   })
   .strict()
-  .default({ language: 'inherit', timeZone: null });
+  .prefault({ language: 'inherit', timeZone: null });
 const entertainmentCommandSchema = z
   .object({
     enabled: z.boolean(),
     cooldownSeconds: z.number().int().min(0).max(86400),
   })
   .strict()
-  .default({ enabled: true, cooldownSeconds: 0 });
+  .prefault({ enabled: true, cooldownSeconds: 0 });
 const entertainmentShape = Object.fromEntries(
   ENTERTAINMENT_COMMANDS.map((command) => [command, entertainmentCommandSchema]),
 ) as Record<EntertainmentCommand, typeof entertainmentCommandSchema>;
-const entertainmentSettingsSchema = z.object(entertainmentShape).strict().default({});
+const entertainmentSettingsSchema = z.object(entertainmentShape).strict().prefault({});
 
 const snowflake = z.string().regex(/^\d{17,20}$/);
 const ids = z
@@ -121,7 +121,7 @@ export const guildSettingsDraftSchema = z
         roleId: snowflake.nullable(),
       })
       .strict()
-      .default({ alertsEnabled: false, reportsEnabled: false, channelId: null, roleId: null }),
+      .prefault({ alertsEnabled: false, reportsEnabled: false, channelId: null, roleId: null }),
     entertainment: entertainmentSettingsSchema,
     moderationVote: z
       .object({
@@ -131,7 +131,7 @@ export const guildSettingsDraftSchema = z
         voterRoleIds: ids,
       })
       .strict()
-      .default({ threshold: 5, voteWindowSeconds: 60, durationMinutes: 1, voterRoleIds: [] }),
+      .prefault({ threshold: 5, voteWindowSeconds: 60, durationMinutes: 1, voterRoleIds: [] }),
     features: z.object(featureShape).strict(),
     access: guildSettingsAccessDraftSchema,
     channels: z

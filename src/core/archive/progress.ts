@@ -173,7 +173,9 @@ const presentTime = anyNumber.pipe(timestamp).optional().catch(undefined);
 /** Present only when valid. */
 const validCount = nonNegative.optional().catch(undefined);
 /** A counter and whether it was stored as an exact non-negative integer. */
-const exactCount = z.unknown().transform((value) => ({
+// A bare transform: zod 4 treats an `unknown` key as optional and would leave an
+// absent counter undefined instead of an inexact 0.
+const exactCount = z.transform((value: unknown) => ({
   value: count.parse(value),
   exact: z.number().int().safe().nonnegative().safeParse(value).success,
 }));

@@ -48,7 +48,7 @@ export const OCCURRED_AT_MAX_SKEW_MS = 5 * 60_000;
 export const parseNotificationRequest = (
   body: unknown,
   now: Date,
-): z.SafeParseReturnType<unknown, Notification> =>
+): z.ZodSafeParseResult<Notification> =>
   NotificationSchema.superRefine((notification, ctx) => {
     if (
       notification.occurredAt !== undefined &&

@@ -55,7 +55,7 @@ const AttachmentCacheSchema = z
 
 const ConfigSchema = z
   .object({
-    attachment_cache: AttachmentCacheSchema.default({}),
+    attachment_cache: AttachmentCacheSchema.prefault({}),
   })
   .strict();
 

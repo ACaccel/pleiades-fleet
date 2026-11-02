@@ -23,7 +23,7 @@ export const archiveRuntimeSchema = z
         additional_roots: z.array(z.string().min(1)).default([]),
       })
       .strict()
-      .default({}),
+      .prefault({}),
   })
   .strict()
   .superRefine((value, ctx) => {

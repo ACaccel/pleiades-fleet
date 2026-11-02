@@ -129,7 +129,7 @@ const permissionRankConfigSchema = z
         social_preview: featureCeilingSchema.optional(),
       })
       .strict()
-      .default({}),
+      .prefault({}),
   })
   .strict();
 

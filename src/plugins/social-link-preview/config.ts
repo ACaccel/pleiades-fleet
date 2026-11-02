@@ -31,11 +31,13 @@ const MAX_URLS_PER_MESSAGE = 5;
  * Every message names both the key and the condition, so a startup failure
  * tells an operator exactly which line of `config.json` is missing.
  */
-const proxyHostList = (key: string): z.ZodArray<z.ZodString, 'atleastone'> =>
+const proxyHostList = (key: string): z.ZodArray<z.ZodString> =>
   z
     .array(z.string().min(1), {
-      required_error: `${key} is required when social_link_preview.enabled is true`,
-      invalid_type_error: `${key} must be an array of embed-proxy host names`,
+      error: (issue) =>
+        issue.input === undefined
+          ? `${key} is required when social_link_preview.enabled is true`
+          : `${key} must be an array of embed-proxy host names`,
     })
     .nonempty(`${key} must list at least one embed-proxy host`);
 
@@ -77,7 +79,7 @@ const GallerySchema = z
     message: 'gallery.cacheMaxBytes must be at least gallery.maxImageBytes',
     path: ['cacheMaxBytes'],
   })
-  .default({});
+  .prefault({});
 
 /** Fields shared by both branches; all defaulted, none operator-mandatory. */
 const commonShape = {
