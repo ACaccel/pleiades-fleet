@@ -1,5 +1,24 @@
 # Upgrade notes
 
+## Isolated archive capacity sampling
+
+Install the [independent sampler](../tools/mongo-storage/README.md) before deploying
+msg-archive under dedicated bot/database accounts. Configure
+`ARCHIVE_MONGO_USAGE_FILE` in msg-archive's root-owned `.env` and set the existing
+`archive_runtime.storage.mongo_data_root` to the verified active `storage.dbPath`.
+Update the matching operator-owned deployment input snapshots and reinstall the
+privileged local-deployment helper so it checks sample readiness before stopping
+bots. Keep the database directory permissions unchanged.
+
+The sample path intentionally uses an environment variable: older releases ignore
+unknown environment keys, while their strict runtime JSON schema rejects new
+fields. Do not add `mongo_usage_file` to JSON settings. Existing rollback therefore
+remains able to start the old code with its previous capacity behavior; it does not
+repair that code's lack of isolated sampling support. Keep the sampler and shared
+runtime while any installed release uses them. For stale archived data, verify
+capture and periodic coverage after the new worker starts; recovery cannot restore
+messages Discord no longer provides.
+
 ## Official Node.js runtime
 
 Follow [local setup](contributing/local-setup.md) to install the exact `.nvmrc`

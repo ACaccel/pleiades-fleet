@@ -410,7 +410,27 @@ export function releaseAccessScript(selected) {
     require('mongoose');
     require('./src/infra/graphics/canvas-font').ensureCanvasFont();
     if (!require('./src/infra/graphics/canvas-emoji').renderEmojiImage(String.fromCodePoint(0x1F44D), 28))
-      throw Error('Emoji rendering failed');`;
+      throw Error('Emoji rendering failed');
+    if (${JSON.stringify(selected.includes('msg-archive'))}) {
+      const config = JSON.parse(fs.readFileSync('src/bot/msg-archive/config.json', 'utf8'));
+      const env = require('./src/core/config/env').loadEnv({
+        source: require('dotenv').parse(fs.readFileSync('src/bot/msg-archive/.env')),
+        exitOnFailure: false,
+      });
+      const { config: runtime } = require('./src/plugins/message-backup/config').parseArchiveSettings({
+        backupServers: config.backup_server,
+        runtime: config.archive_runtime,
+        policy: config.archive_policy,
+        mongoUsageFile: env.ARCHIVE_MONGO_USAGE_FILE,
+      });
+      if (config.backup_server.length > 0) {
+        if (!env.ARCHIVE_MONGO_USAGE_FILE)
+          throw Error('Isolated msg-archive requires ARCHIVE_MONGO_USAGE_FILE; install the MongoDB storage sampler');
+        require('./src/infra/archive/storage-sample').waitForMongoStorageSample(
+          env.ARCHIVE_MONGO_USAGE_FILE, runtime.storage.mongo_data_root, Date.now()
+        ).catch(error => { console.error(error.message); process.exitCode = 1; });
+      }
+    }`;
 }
 function verifyServiceAccess(directory, selected) {
   command(

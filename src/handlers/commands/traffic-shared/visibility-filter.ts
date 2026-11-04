@@ -17,9 +17,10 @@
  *       recorded as deleted and viewable by `@everyone`; a thread whose
  *       parent is gone follows the parent's record, and a private one never
  *       counts;
- *   (c) `public` only — every role that can view the command channel can
+ *   (c) `public` only — every role combination that can view the command channel can
  *       also view the channel (through the parent for a thread), so a public
- *       reply never exposes activity its readers cannot see. Private threads
+ *       reply never exposes activity its readers cannot see. The adapter also checks
+ *       member-specific permission overwrites when proving audience coverage. Private threads
  *       never count in public.
  *
  * {@link resolveVisibleChannelIds} is pure; `allowed-channels.ts` adapts
@@ -41,7 +42,7 @@ export interface LiveChannelAccess {
   readonly canView: boolean;
   readonly canManageThreads: boolean;
   /**
-   * Every role that can view the command channel can view this one. Only read for a
+   * Every reader of the command channel can view this one. Only read for a
    * `public` reply; `false` when the command channel's audience is unknown.
    */
   readonly audienceCanView: boolean;

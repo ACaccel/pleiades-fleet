@@ -12,6 +12,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ArchiveChannelInfo, StatsWindow } from '../../../src/core/archive/stats';
 import type { ArchiveMessage } from '../../../src/core/archive/types';
 import { asGuildId } from '../../../src/core/ids';
+import { resolvePeriod } from '../../../src/handlers/commands/traffic-shared/period';
 import { map, unwrap } from '../../../src/core/result';
 import {
   StaticConnectionManager,
@@ -278,6 +279,19 @@ describe('ArchiveStatsRepo counting rules', () => {
     });
   });
 
+  it('counts messages without content in server and personal summaries', async () => {
+    const withoutContent = message({ attachments: [{ contentType: 'image/png' }] });
+    delete withoutContent.content;
+    await withFixture({ messages: [withoutContent] }, async ({ repo }) => {
+      for (const authorId of [undefined, 'u1']) {
+        const summary = unwrap(await summaryOf(repo, WEEK, { ...scope, authorId }));
+        expect(summary.messages).toBe(1);
+        expect(summary.content.media).toBe(1);
+        expect(summary.content.links).toBe(0);
+      }
+    });
+  });
+
   it('classifies content per message, allowing several categories at once', async () => {
     const voiceFlag = 8192;
     const messages = [
@@ -426,6 +440,78 @@ describe('ArchiveStatsRepo rankings and trends', () => {
       expect(report.summary.previousMessages).toBe(1);
       expect(report.trend.current).toEqual([{ key: '2026-01-05', messages: 2 }]);
       expect(report.trend.previous).toEqual([{ key: '2025-12-29', messages: 1 }]);
+    });
+  });
+
+  it.each([undefined, 'u1'])(
+    'excludes the default 7d comparison gap from trends (author: %s)',
+    async (authorId) => {
+      const { window, previous: previousWindow } = resolvePeriod(
+        '7d',
+        T0 + 6 * DAY + 12 * HOUR,
+        'UTC',
+      );
+      const messages = [
+        message({ at: previousWindow.startMs + HOUR }),
+        message({ at: previousWindow.endMs }),
+        message({ at: T0 - HOUR }),
+        message({ at: T0 + HOUR }),
+      ];
+      await withFixture({ messages }, async ({ repo }) => {
+        const report = unwrap(
+          await repo.activity({
+            window,
+            previousWindow,
+            scope,
+            timeZone: 'UTC',
+            sections: {
+              summary: { authorId },
+              trend: { granularity: 'day', authorId },
+              heatmap: { authorId },
+              activeDays: { userId: 'u1' },
+            },
+          }),
+        );
+        expect(report.summary.messages).toBe(1);
+        expect(report.summary.previousMessages).toBe(1);
+        expect(report.trend.current).toHaveLength(7);
+        expect(report.trend.previous).toHaveLength(7);
+        expect(report.trend.current.reduce((sum, row) => sum + row.messages, 0)).toBe(1);
+        expect(report.trend.previous?.reduce((sum, row) => sum + row.messages, 0)).toBe(1);
+        expect(report.heatmap.cells.flat().reduce((sum, count) => sum + count, 0)).toBe(1);
+        expect(report.activeDays.dayKeys).toEqual(['2026-01-05']);
+      });
+    },
+  );
+
+  it('counts overlapping windows independently in both trends', async () => {
+    const window = { startMs: T0, endMs: T0 + 2 * DAY };
+    const previousWindow = { startMs: T0 - DAY, endMs: T0 + DAY };
+    const messages = [
+      message({ at: T0 - HOUR }),
+      message({ at: T0 + HOUR }),
+      message({ at: T0 + DAY }),
+    ];
+    await withFixture({ messages }, async ({ repo }) => {
+      const report = unwrap(
+        await repo.activity({
+          window,
+          previousWindow,
+          scope,
+          timeZone: 'UTC',
+          sections: { summary: {}, trend: { granularity: 'day' } },
+        }),
+      );
+      expect(report.summary.messages).toBe(2);
+      expect(report.summary.previousMessages).toBe(2);
+      expect(report.trend.current).toEqual([
+        { key: '2026-01-05', messages: 1 },
+        { key: '2026-01-06', messages: 1 },
+      ]);
+      expect(report.trend.previous).toEqual([
+        { key: '2026-01-04', messages: 1 },
+        { key: '2026-01-05', messages: 1 },
+      ]);
     });
   });
 

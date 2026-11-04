@@ -1,17 +1,11 @@
 /**
  * Adapts a discord.js guild and the invoking member to the pure visibility rules
  * of `visibility-filter.ts`: View Channel and Manage Threads per cached channel,
- * the rank policy, and for a `public` reply the roles that can view the command
- * channel. {@link loadVisibleScope} also reads the archive's channel records and
- * whether a full backup has completed.
+ * the rank policy, and for a `public` reply the role and member permission
+ * coverage of the command channel. {@link loadVisibleScope} also reads the
+ * archive's channel records.
  */
-import {
-  PermissionFlagsBits,
-  type Guild,
-  type GuildMember,
-  type PermissionsBitField,
-  type Role,
-} from 'discord.js';
+import { PermissionFlagsBits, type Guild, type GuildMember } from 'discord.js';
 import type { PermissionRankPolicy } from '@core/plugin';
 
 import type { ArchiveChannelInfo } from '../../../core/archive/stats';
@@ -20,29 +14,14 @@ import { parentChannelIdOf } from '../../../infra/discord';
 import type { Repos } from '../../../persistence/repositories';
 
 import type { Visibility } from './types';
+import { commandAudience, coversAudience, type PublicAudience } from './audience-coverage';
 import { resolveVisibleChannelIds, type LiveChannelAccess } from './visibility-filter';
-
-type PermissionTarget = {
-  permissionsFor(subject: GuildMember | Role): Readonly<PermissionsBitField> | null;
-};
-const canViewAs = (channel: PermissionTarget, subject: GuildMember | Role): boolean =>
-  channel.permissionsFor(subject)?.has(PermissionFlagsBits.ViewChannel) ?? false;
-
-/**
- * The roles that can view the command channel, or `undefined` when the channel is
- * not cached and its audience is unknown.
- */
-const commandAudience = (guild: Guild, commandChannelId: string): Role[] | undefined => {
-  const channel = guild.channels.cache.get(commandChannelId);
-  if (channel === undefined || !('permissionsFor' in channel)) return undefined;
-  return [...guild.roles.cache.values()].filter((role) => canViewAs(channel, role));
-};
 
 /** The invoking member's access to every cached channel of the guild. */
 const liveChannelAccessOf = (
   guild: Guild,
   member: GuildMember,
-  audience: readonly Role[] | undefined,
+  audience: PublicAudience | undefined,
 ): ReadonlyMap<string, LiveChannelAccess> => {
   const access = new Map<string, LiveChannelAccess>();
   for (const [channelId, channel] of guild.channels.cache) {
@@ -55,7 +34,7 @@ const liveChannelAccessOf = (
       audienceCanView:
         audience !== undefined &&
         'permissionsFor' in channel &&
-        audience.every((role) => canViewAs(channel, role)),
+        coversAudience(guild, channel.isThread() ? (channel.parent ?? channel) : channel, audience),
     });
   }
   return access;
@@ -74,8 +53,9 @@ interface VisibilityFilterInput {
 
 export const buildAllowedChannelSet = (input: VisibilityFilterInput): ReadonlySet<string> => {
   const { guild, member, policy } = input;
-  // Role coverage is only needed for a public reply; it costs a check per role and channel.
-  const audience = input.mode === 'public' ? commandAudience(guild, input.commandChannelId) : [];
+  // Audience coverage is only needed for a public reply.
+  const audience =
+    input.mode === 'public' ? commandAudience(guild, input.commandChannelId) : undefined;
   return resolveVisibleChannelIds({
     records: input.records,
     live: liveChannelAccessOf(guild, member, audience),

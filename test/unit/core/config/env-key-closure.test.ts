@@ -23,6 +23,7 @@ const FULL_SOURCE: NodeJS.ProcessEnv = {
   TOKEN: 'real-bot-token-value-xyz',
   CLIENT_ID: '123456789012345678',
   MONGO_URI: 'mongodb://db.internal:27017',
+  ARCHIVE_MONGO_USAGE_FILE: '/run/pleiades-mongo-storage/usage.json',
   MONGO_INSPECT_URI: 'mongodb://inspector@db.internal:27017/?authSource=admin',
   MONGO_RECOVERY_INTERVAL_MS: '5000',
   NODE_ENV: 'test',

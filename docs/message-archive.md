@@ -218,7 +218,12 @@ alone; **Back** shows the current progress.
   the Node runtime, the whole MongoDB data directory and `storage.additional_roots`)
   against `storage.budget_bytes`, with when it was measured; background writes pause
   by that number. The worker samples every 15 seconds. The MongoDB data directory
-  (live) is walked on every sample. The project directory, the Node runtime and
+  (live) is walked on every direct sample. Under account isolation, the
+  [independent sampler](../tools/mongo-storage/README.md) walks it as the database
+  account; the worker reads only the published capacity sample. Each refresh waits
+  for a measurement begun after the request so pending allocations remain charged
+  until observed. Missing or invalid samples fail closed without relaxing limits.
+  The project directory, the Node runtime and
   `storage.additional_roots` (stable) change through deployments, logs and
   attachment archives; their size is reused for ten minutes and then walked again as
   part of the next sample, and on every sample once usage reaches 90% of the budget.
@@ -657,7 +662,8 @@ emoji and stickers) and `visibility` (`public` by default, `ephemeral` by defaul
 and apps; only `emoji` and `sticker` take `top_n` (up to 20 and 12) to show fewer. `24h`
 is a rolling window; the other ranges are whole local days ending today, so `7d`
 shows seven daily points with today last, compared with the same span one range
-earlier.
+earlier. Messages in the gap between those windows count in neither trend;
+trend counts use the same window bounds as the headline totals.
 Trends are hourly for `24h`, weekly for `365d` and daily otherwise; trends, heat
 maps and day labels use the bot's [`timeZone`](configuration.md#common-bot-settings), `UTC` by default. `24h` omits the heat map from the
 details image. A member
@@ -675,9 +681,11 @@ fits whole beside it; the member dashboards' channel distribution shows names on
 Visibility follows the [privacy rules](architecture.md#privacy-aware-data-commands)
 for every subcommand except `emoji` and `sticker`, which count every channel and show
 no channel. `/traffic user` is filtered by the invoker, not the member shown. A
-`public` reply counts only channels that every role able to read the command channel
-can also read, and never private threads. `/traffic channel` answers a channel the
-invoker may not count, including one a `public` reply excludes, with "not found or
+`public` reply counts only channels that every reader of the command channel
+can also read, proving coverage across role combinations, and never private threads. Individual member permission overwrites
+also apply; an unknown member granted access to the command channel needs an
+explicit source grant before that source can contribute. `/traffic channel` answers
+a channel the invoker may not count, including one a `public` reply excludes, with "not found or
 no permission". Message previews name only channels the reply may count. Only the
 report follows `visibility`: a busy refusal, a notice such as "no data" or "not
 found", and an error always reach only the invoker, even for a `public` report.

@@ -374,9 +374,11 @@ archive-aware `/gay` readings must:
    ceiling, resolving the invoker's roles and permissions.
 2. Cap public replies at `min(userRank, commandChannelRank)` and ephemeral replies
    at `userRank`; gate the invoker, not the report subject. A public reply also
-   needs audience coverage: every role, `@everyone` included, that can view the
-   command channel must view the counted channel (threads through the parent), and
-   private threads never count publicly.
+   needs audience coverage across role combinations, `@everyone` included, and
+   individual member overwrites (threads through the parent). A role allow may
+   override a different role denial, so checking each role alone is insufficient.
+   Member exceptions use cached permissions or explicit matching overwrites;
+   unknown membership fails closed. Private threads never count publicly.
 3. Build candidates from `archive_channels` plus the guild cache. Judge threads,
    archived ones included, through the parent (rank through the recorded parent
    chain); count a private thread, or a recorded thread of unknown type, only when
@@ -464,6 +466,16 @@ See [manual deployment](contributing/deployment.md), the
 their own recorded runtime versions; application updates do not rewrite them.
 
 ## Message archive ownership
+
+Under [isolated deployment](contributing/local-auto-deployment.md), MongoDB files
+remain private to `pleiades-mongo`. The independent
+[capacity sampler](../tools/mongo-storage/README.md) runs under that account with
+read-only data access and publishes an atomic aggregate JSON sample. The bot
+measures its own stable storage and reads the sample through a bounded adapter;
+it validates the configured data root and waits for a measurement begun after
+its refresh request before retiring projected writes. Missing, stale or invalid
+samples block capacity admission. Deployment preflight checks a fresh sample as
+the bot account before stopping existing services.
 
 Only msg-archive receives the archive writer capability. Reader/writer connection
 pools are separate; shared startup suppresses automatic archive collection/index

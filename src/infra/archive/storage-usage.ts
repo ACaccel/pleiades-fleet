@@ -3,6 +3,7 @@ import { lstat, opendir, realpath, statfs } from 'node:fs/promises';
 import { dirname, join, resolve, sep } from 'node:path';
 import type { Connection } from 'mongoose';
 import { serverDataPath } from '../mongo/admin';
+import { waitForMongoStorageSample } from './storage-sample';
 
 export interface StorageUsage {
   /** When the sample started; it bounds the age the monitor accepts. */
@@ -116,6 +117,8 @@ interface ArchiveStorageSamplerOptions {
    */
   readonly exactAboveBytes?: number;
   readonly now?: () => number;
+  /** Physical MongoDB sample published by the isolated database account. */
+  readonly mongoUsageFile?: string;
 }
 
 /**
@@ -151,7 +154,7 @@ export class ArchiveStorageSampler {
         this.lastUsedBytes >= this.options.exactAboveBytes)
     )
       stable = await this.walkStable(roots, now());
-    const measured = await measureStorageRoots(roots.live);
+    const measured = await this.measureLive(roots);
     const usedBytes = stable.usedBytes + measured.usedBytes;
     this.lastUsedBytes = usedBytes;
     return {
@@ -168,12 +171,31 @@ export class ArchiveStorageSampler {
     };
   }
 
+  private async measureLive(roots: ArchiveStorageRoots): Promise<StorageUsage> {
+    const file = this.options.mongoUsageFile;
+    if (file === undefined) return measureStorageRoots(roots.live);
+    const root = roots.live[0];
+    if (roots.live.length !== 1 || root === undefined)
+      throw new TypeError('External storage sampling requires one MongoDB root');
+    const sample = await waitForMongoStorageSample(file, root, Date.now());
+    return {
+      measuredAt: sample.measuredAt,
+      usedBytes: sample.usedBytes,
+      availableBytes: sample.availableBytes,
+      roots: [sample.root],
+    };
+  }
+
   /** The live roots are excluded so data inside the project is counted once, live. */
   private async walkStable(
     roots: ArchiveStorageRoots,
     measuredAt: number,
   ): Promise<{ readonly usedBytes: number; readonly measuredAt: number }> {
-    const canonicalLive = await canonicalRoots(roots.live);
+    // The database account owns external roots; resolving them must not require traversal.
+    const canonicalLive =
+      this.options.mongoUsageFile === undefined
+        ? await canonicalRoots(roots.live)
+        : roots.live.map((root) => resolve(root));
     const stable = (await canonicalRoots(roots.stable)).filter(
       (root) => !inside(root, canonicalLive),
     );

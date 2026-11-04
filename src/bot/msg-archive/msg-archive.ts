@@ -42,6 +42,7 @@ export class MsgArchive extends BaseBot<MsgArchiveConfig> {
     mongoURI: string,
     clientId: string,
     config: MsgArchiveConfig,
+    mongoUsageFile?: string,
   ) {
     super(client, token, mongoURI, clientId, {
       ...config,
@@ -59,6 +60,7 @@ export class MsgArchive extends BaseBot<MsgArchiveConfig> {
         adminIds: this.config.admin ?? [],
         policy: this.config.archive_policy,
         runtime: this.config.archive_runtime,
+        mongoUsageFile,
         ...(intervalMinutes !== undefined ? { backupIntervalMs: intervalMinutes * MINUTE_MS } : {}),
       }),
     );

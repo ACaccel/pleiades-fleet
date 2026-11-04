@@ -521,18 +521,16 @@ export const activityPipeline = (channelIds: readonly string[], plan: ActivityPl
   const facets: Facets = {};
   for (const { filter, totals } of plan.channels)
     facets[named('channels', filter)] = channelsFacet(plan, filter, totals);
-  // A quarter hour can straddle a window bound, so rows also say which window.
+  // Count each window independently: a scan may include a gap or overlapping windows.
   const gates = windowGates(plan);
   for (const filter of plan.time)
     facets[named('time', filter)] = [
       ...authorMatch(filter),
       {
         $group: {
-          _id: {
-            quarter: quarterHour,
-            current: gates === undefined ? { $literal: true } : gates.current,
-          },
-          messages: { $sum: 1 },
+          _id: quarterHour,
+          messages: gates === undefined ? { $sum: 1 } : countIf(gates.current),
+          ...(gates === undefined ? {} : { previousMessages: countIf(gates.previous) }),
         },
       },
     ];

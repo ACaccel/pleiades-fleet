@@ -77,18 +77,12 @@ const userNames = (value: unknown): { username?: string; globalName?: string } =
     ...(globalName === undefined ? {} : { globalName }),
   };
 };
-/** Quarter-hour counts keyed by the quarter's start time; `current` selects the window. */
-const quarterCounts = (
-  raw: readonly Row[],
-  valueField: string,
-  current = true,
-): Map<number, number> => {
+/** Non-zero quarter-hour counts keyed by the quarter's start time. */
+const quarterCounts = (raw: readonly Row[], valueField: string): Map<number, number> => {
   const counts = new Map<number, number>();
   for (const row of raw) {
-    const id = record(row._id);
-    const quarter = typeof row._id === 'number' ? row._id : num(id.quarter);
-    if (typeof row._id !== 'number' && id.current !== current) continue;
-    counts.set(quarter * QUARTER_HOUR_MS, num(row[valueField]));
+    const count = num(row[valueField]);
+    if (count > 0) counts.set(num(row._id) * QUARTER_HOUR_MS, count);
   }
   return counts;
 };
@@ -202,7 +196,7 @@ export const buildReport = (
   const filterOf = (section: { readonly authorId?: string }): string => section.authorId ?? '';
   const authors = record(output.authors?.[0]);
   const quartersOf = (filter: string, current = true): Map<number, number> =>
-    quarterCounts(facet('time', filter), 'messages', current);
+    quarterCounts(facet('time', filter), current ? 'messages' : 'previousMessages');
   const report: Partial<ActivityResults> = {};
 
   if (sections.summary) {

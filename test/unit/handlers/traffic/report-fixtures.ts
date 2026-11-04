@@ -24,7 +24,7 @@ import type {
   TopReactedMessage,
 } from '../../../../src/persistence/repositories/archive-stats.types';
 import { buildFakeBot } from '../../../fixtures/discord/bot-fake';
-import { buildGuild } from '../../../fixtures/discord/guild-builder';
+import { buildGuild, buildGuildRoles } from '../../../fixtures/discord/guild-builder';
 import { buildGuildMember } from '../../../fixtures/discord/member-builder';
 import {
   buildChatInputInteraction,
@@ -451,7 +451,10 @@ export const fakeGuild = (options: FakeGuildOptions = {}): Guild => {
   return Object.assign(buildGuild({ id: GUILD_ID, name: '範例伺服器', emojis, stickers }), {
     channels: { cache: channels },
     members: { cache: members, fetch: async (id: string) => members.get(id) },
-    roles: { cache: new Map([['r1', { id: 'r1', name: '管理員' }]]) },
+    roles: buildGuildRoles({
+      everyoneRoleId: 'r1',
+      roles: [{ id: 'r1', name: '管理員', permissions: [PermissionFlagsBits.ViewChannel] }],
+    }),
     client: {
       users: {
         // A bot the client has seen outside this guild's member cache.

@@ -11,6 +11,7 @@ checkout is never installed directly. Existing hosts must complete the offline
 | Controller and build | Deployment operator       | Independent release worktree and `/var/lib/pleiades-deployer`                             |
 | Bots                 | `pleiades`                | `/var/lib/pleiades-fleet`, `/var/log/pleiades-fleet`, private systemd runtime directories |
 | MongoDB              | `pleiades-mongo`          | Its database, journal and log directories                                                 |
+| Capacity sampler     | `pleiades-mongo`          | Aggregate sample under `/run/pleiades-mongo-storage`; database access is read-only        |
 | Daily backup         | `pleiades-backup`         | Its backup directory                                                                      |
 | Install helper       | root, restricted commands | Fixed application releases and managed bot units                                          |
 
@@ -18,7 +19,11 @@ Root owns application releases under `/opt/pleiades-fleet` and settings under
 `/etc/pleiades-fleet`. Bots have no login shell or GitHub credentials and cannot
 write their executable files. `pleiades-settings` grants the bots and operator
 read access to settings; these accounts intentionally share bot credentials.
-MongoDB storage is accessible only to its separate account. These are OS account
+MongoDB storage is accessible only to its separate account. Before deploying
+msg-archive, install the [capacity sampler](../../tools/mongo-storage/README.md)
+and configure its sample path and the active data root. The bot reads only the
+aggregate sample; installation preflight rejects missing or stale samples before
+stopping a running bot. These are OS account
 and filesystem boundaries, rather than separate containers per bot.
 
 Each release contains its own official Node runtime, npm dependencies and font
