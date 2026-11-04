@@ -1,23 +1,26 @@
 # Upgrade notes
 
-## Isolated archive capacity sampling
+## Shared MongoDB data access
 
-Install the [independent sampler](../tools/mongo-storage/README.md) before deploying
-msg-archive under dedicated bot/database accounts. Configure
-`ARCHIVE_MONGO_USAGE_FILE` in msg-archive's root-owned `.env` and set the existing
-`archive_runtime.storage.mongo_data_root` to the verified active `storage.dbPath`.
-Update the matching operator-owned deployment input snapshots and reinstall the
-privileged local-deployment helper so it checks sample readiness before stopping
-bots. Keep the database directory permissions unchanged.
+Bot units now join the `pleiades-mongo` group so msg-archive measures the MongoDB
+data directory directly; the retired capacity sampler and its
+`ARCHIVE_MONGO_USAGE_FILE` setting are gone (the key is ignored if present).
+Bot and database settings files need no change. On an existing isolated host:
 
-The sample path intentionally uses an environment variable: older releases ignore
-unknown environment keys, while their strict runtime JSON schema rejects new
-fields. Do not add `mongo_usage_file` to JSON settings. Existing rollback therefore
-remains able to start the old code with its previous capacity behavior; it does not
-repair that code's lack of isolated sampling support. Keep the sampler and shared
-runtime while any installed release uses them. For stale archived data, verify
-capture and periodic coverage after the new worker starts; recovery cannot restore
-messages Discord no longer provides.
+1. Make the existing data group-readable:
+   `sudo chmod -R g+rX,g-w,o-rwx /var/lib/pleiades-mongo/data`.
+2. Reinstall the privileged helper from the reviewed checkout:
+   `sudo install -o root -g root -m 0644 tools/local-deployment/helper.mjs /usr/local/libexec/pleiades-local-deploy.mjs`.
+   Each bot gains the group when its unit is next installed.
+3. Install the re-rendered MongoDB unit (`UMask=0027`) as in
+   [cutover step 6](../tools/local-deployment/CUTOVER.md#offline-data-and-unit-transition) and restart
+   `mongodb-pleiades.service` in a maintenance window so new database files stay
+   group-readable.
+4. If the sampler was installed, run
+   `sudo systemctl disable --now pleiades-mongo-storage.service`, remove
+   `/etc/systemd/system/pleiades-mongo-storage.service` and
+   `/usr/local/libexec/pleiades-mongo-storage.mjs`, then
+   `sudo systemctl daemon-reload`.
 
 ## Official Node.js runtime
 

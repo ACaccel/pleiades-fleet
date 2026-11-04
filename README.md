@@ -81,8 +81,7 @@ Every bot shares the framework capabilities:
   resumable [full backup](docs/message-archive.md#full-backup) after one
   confirmation, check status and set the
   [periodic schedule](docs/message-archive.md#periodic-schedule) (disabled by
-  default) from the guild's debug channel. Isolated deployments use a separate
-  [capacity sampler](tools/mongo-storage/README.md) to keep database files private.
+  default) from the guild's debug channel.
 - **Activity reports.** Any bot can enable the read-only
   [`/traffic` dashboards](docs/message-archive.md#activity-reports) on the archive:
   dashboard images in embeds (two for the activity reports), public unless requested

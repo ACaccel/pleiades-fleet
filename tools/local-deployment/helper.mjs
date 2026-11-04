@@ -81,7 +81,7 @@ export function renderUnit(id, bot, timeout) {
     bot === 'gopher'
       ? ''
       : `ExecStartPre=${[...args, `${directory}/scripts/mongo-ready.ts`, `${paths.settings}/bots/${bot}/.env`, String(timeout)].map(q).join(' ')}\n`;
-  return `${marker}[Unit]\nDescription=Pleiades ${bot}\nAfter=network-online.target mongodb-pleiades.service\nWants=network-online.target\nStartLimitIntervalSec=0\n\n[Service]\nType=exec\nUser=pleiades\nGroup=pleiades\nSupplementaryGroups=pleiades-settings\nWorkingDirectory=${directory}\nEnvironment=${q(`PATH=${directory}/runtime/bin:${directory}/node_modules/.bin:/usr/bin:/bin`)}\nEnvironment=NODE_ENV=production\nEnvironment=${q(`PLEIADES_FONT_DIR=${directory}/fonts`)}\nEnvironment=${q(`TS_NODE_PROJECT=${directory}/tsconfig.json`)}\nEnvironment=${q(`PLEIADES_READY_FILE=/run/pleiades-${bot}/ready.json`)}\nEnvironment=${q(`LOG_DIR=${paths.logs}`)}\nRuntimeDirectory=pleiades-${bot}\nRuntimeDirectoryMode=0750\nTimeoutStartSec=${timeout + 15}\nTimeoutStopSec=60\nRestart=on-failure\nRestartSec=5\nKillSignal=SIGTERM\nKillMode=control-group\nNoNewPrivileges=true\nProtectSystem=strict\nProtectHome=true\nPrivateTmp=true\nPrivateDevices=true\nProtectKernelTunables=true\nProtectKernelModules=true\nProtectControlGroups=true\nRestrictSUIDSGID=true\nRestrictRealtime=true\nLockPersonality=true\nCapabilityBoundingSet=\nReadWritePaths=${paths.state} ${paths.logs}\nUMask=0077\nStandardOutput=journal\nStandardError=journal\n${pre}ExecStart=${[...args, `${directory}/src/bot/${bot}/index.ts`].map(q).join(' ')}\n\n[Install]\nWantedBy=multi-user.target\n`;
+  return `${marker}[Unit]\nDescription=Pleiades ${bot}\nAfter=network-online.target mongodb-pleiades.service\nWants=network-online.target\nStartLimitIntervalSec=0\n\n[Service]\nType=exec\nUser=pleiades\nGroup=pleiades\nSupplementaryGroups=pleiades-settings pleiades-mongo\nWorkingDirectory=${directory}\nEnvironment=${q(`PATH=${directory}/runtime/bin:${directory}/node_modules/.bin:/usr/bin:/bin`)}\nEnvironment=NODE_ENV=production\nEnvironment=${q(`PLEIADES_FONT_DIR=${directory}/fonts`)}\nEnvironment=${q(`TS_NODE_PROJECT=${directory}/tsconfig.json`)}\nEnvironment=${q(`PLEIADES_READY_FILE=/run/pleiades-${bot}/ready.json`)}\nEnvironment=${q(`LOG_DIR=${paths.logs}`)}\nRuntimeDirectory=pleiades-${bot}\nRuntimeDirectoryMode=0750\nTimeoutStartSec=${timeout + 15}\nTimeoutStopSec=60\nRestart=on-failure\nRestartSec=5\nKillSignal=SIGTERM\nKillMode=control-group\nNoNewPrivileges=true\nProtectSystem=strict\nProtectHome=true\nPrivateTmp=true\nPrivateDevices=true\nProtectKernelTunables=true\nProtectKernelModules=true\nProtectControlGroups=true\nRestrictSUIDSGID=true\nRestrictRealtime=true\nLockPersonality=true\nCapabilityBoundingSet=\nReadWritePaths=${paths.state} ${paths.logs}\nUMask=0077\nStandardOutput=journal\nStandardError=journal\n${pre}ExecStart=${[...args, `${directory}/src/bot/${bot}/index.ts`].map(q).join(' ')}\n\n[Install]\nWantedBy=multi-user.target\n`;
 }
 export function safeLinkTarget(root, linkPath, target) {
   const destination = resolve(dirname(linkPath), target);
@@ -410,27 +410,7 @@ export function releaseAccessScript(selected) {
     require('mongoose');
     require('./src/infra/graphics/canvas-font').ensureCanvasFont();
     if (!require('./src/infra/graphics/canvas-emoji').renderEmojiImage(String.fromCodePoint(0x1F44D), 28))
-      throw Error('Emoji rendering failed');
-    if (${JSON.stringify(selected.includes('msg-archive'))}) {
-      const config = JSON.parse(fs.readFileSync('src/bot/msg-archive/config.json', 'utf8'));
-      const env = require('./src/core/config/env').loadEnv({
-        source: require('dotenv').parse(fs.readFileSync('src/bot/msg-archive/.env')),
-        exitOnFailure: false,
-      });
-      const { config: runtime } = require('./src/plugins/message-backup/config').parseArchiveSettings({
-        backupServers: config.backup_server,
-        runtime: config.archive_runtime,
-        policy: config.archive_policy,
-        mongoUsageFile: env.ARCHIVE_MONGO_USAGE_FILE,
-      });
-      if (config.backup_server.length > 0) {
-        if (!env.ARCHIVE_MONGO_USAGE_FILE)
-          throw Error('Isolated msg-archive requires ARCHIVE_MONGO_USAGE_FILE; install the MongoDB storage sampler');
-        require('./src/infra/archive/storage-sample').waitForMongoStorageSample(
-          env.ARCHIVE_MONGO_USAGE_FILE, runtime.storage.mongo_data_root, Date.now()
-        ).catch(error => { console.error(error.message); process.exitCode = 1; });
-      }
-    }`;
+      throw Error('Emoji rendering failed');`;
 }
 function verifyServiceAccess(directory, selected) {
   command(

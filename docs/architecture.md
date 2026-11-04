@@ -467,16 +467,6 @@ their own recorded runtime versions; application updates do not rewrite them.
 
 ## Message archive ownership
 
-Under [isolated deployment](contributing/local-auto-deployment.md), MongoDB files
-remain private to `pleiades-mongo`. The independent
-[capacity sampler](../tools/mongo-storage/README.md) runs under that account with
-read-only data access and publishes an atomic aggregate JSON sample. The bot
-measures its own stable storage and reads the sample through a bounded adapter;
-it validates the configured data root and waits for a measurement begun after
-its refresh request before retiring projected writes. Missing, stale or invalid
-samples block capacity admission. Deployment preflight checks a fresh sample as
-the bot account before stopping existing services.
-
 Only msg-archive receives the archive writer capability. Reader/writer connection
 pools are separate; shared startup suppresses automatic archive collection/index
 creation. Other bots expose archive reads while unrelated repositories retain writes.

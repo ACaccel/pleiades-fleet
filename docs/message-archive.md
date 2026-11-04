@@ -218,12 +218,7 @@ alone; **Back** shows the current progress.
   the Node runtime, the whole MongoDB data directory and `storage.additional_roots`)
   against `storage.budget_bytes`, with when it was measured; background writes pause
   by that number. The worker samples every 15 seconds. The MongoDB data directory
-  (live) is walked on every direct sample. Under account isolation, the
-  [independent sampler](../tools/mongo-storage/README.md) walks it as the database
-  account; the worker reads only the published capacity sample. Each refresh waits
-  for a measurement begun after the request so pending allocations remain charged
-  until observed. Missing or invalid samples fail closed without relaxing limits.
-  The project directory, the Node runtime and
+  (live) is walked on every sample. The project directory, the Node runtime and
   `storage.additional_roots` (stable) change through deployments, logs and
   attachment archives; their size is reused for ten minutes and then walked again as
   part of the next sample, and on every sample once usage reaches 90% of the budget.

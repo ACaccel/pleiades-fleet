@@ -112,11 +112,6 @@ const envShape = {
   TOKEN: nonPlaceholder('TOKEN'),
   CLIENT_ID: nonPlaceholder('CLIENT_ID'),
   MONGO_URI: mongoUriSchema('MONGO_URI').optional(),
-  /** Aggregate physical capacity published by the isolated database account. */
-  ARCHIVE_MONGO_USAGE_FILE: z.preprocess(
-    (value) => (typeof value === 'string' && value.trim().length === 0 ? undefined : value),
-    z.string().refine(path.isAbsolute, 'ARCHIVE_MONGO_USAGE_FILE must be absolute').optional(),
-  ),
   /**
    * Read-only account for nijika's `/db` inspection. Required only when
    * nijika enables that command; startup rejects an account that can write.

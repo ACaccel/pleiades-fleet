@@ -38,8 +38,6 @@ export interface ArchiveWorkerOptions {
   translator: Translator;
   guildIds: readonly string[];
   config: ArchiveRuntimeConfig;
-  /** External physical capacity sample; omitted for direct measurement. */
-  mongoUsageFile?: string;
   policy: ArchivePolicy;
   backupLogEnabled?: boolean;
   /** Users the debug-channel warning and recovery notices mention (the bot's admins). */

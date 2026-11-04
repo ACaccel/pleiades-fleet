@@ -17,9 +17,7 @@ export class ArchiveStorageReporter {
   /** When each guild's sample was last saved. */
   private readonly reportedAt = new WeakMap<ArchiveGuildState, number>();
 
-  public constructor(
-    private readonly ctx: ArchiveWorkerContextFor<'config' | 'logger' | 'mongoUsageFile'>,
-  ) {}
+  public constructor(private readonly ctx: ArchiveWorkerContextFor<'config' | 'logger'>) {}
 
   /**
    * The shared storage monitor; the first opened guild's connection discloses the
@@ -46,7 +44,6 @@ export class ArchiveStorageReporter {
         ),
       // Near the budget the stable roots' growth may decide admission.
       exactAboveBytes: Math.floor(budget.budget_bytes * 0.9),
-      mongoUsageFile: this.ctx.options.mongoUsageFile,
     });
     return new ArchiveStorageMonitor(
       () => sampler.sample(),

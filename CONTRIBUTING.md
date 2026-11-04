@@ -37,8 +37,6 @@ source privacy](docs/message-archive.md), including the separation between
 [full backup](docs/message-archive.md#full-backup).
 Archive operator workflows belong to the [Discord control plane](docs/message-archive.md#discord-controls);
 keep host migration and unrelated collection cleanup in their existing tools.
-Host capacity sampling must preserve the [database account boundary](tools/mongo-storage/README.md);
-isolated deployment checks sample readiness before stopping bots.
 Every `/archive` command and button must recheck the `admin` list, `backup_server`, the
 debug channel and msg-archive ownership, and reject privately without changing the
 shared panel. Custom-ID prefixes of retired panels stay registered only to reply

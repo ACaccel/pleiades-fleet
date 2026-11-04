@@ -24,24 +24,6 @@ describe('loadEnv', () => {
     vi.restoreAllMocks();
   });
 
-  it('accepts an optional absolute archive capacity sample path', () => {
-    const file = '/run/pleiades-mongo-storage/usage.json';
-    expect(
-      loadEnv({ source: { ...validBase, ARCHIVE_MONGO_USAGE_FILE: file }, exitOnFailure: false })
-        .ARCHIVE_MONGO_USAGE_FILE,
-    ).toBe(file);
-    expect(
-      loadEnv({ source: { ...validBase, ARCHIVE_MONGO_USAGE_FILE: '' }, exitOnFailure: false })
-        .ARCHIVE_MONGO_USAGE_FILE,
-    ).toBeUndefined();
-    expect(() =>
-      loadEnv({
-        source: { ...validBase, ARCHIVE_MONGO_USAGE_FILE: 'relative.json' },
-        exitOnFailure: false,
-      }),
-    ).toThrow(EnvLoadError);
-  });
-
   it('validates the recovery interval and supplies its default', () => {
     expect(loadEnv({ exitOnFailure: false, source: validBase }).MONGO_RECOVERY_INTERVAL_MS).toBe(
       60_000,

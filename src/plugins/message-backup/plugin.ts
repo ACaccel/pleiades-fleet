@@ -19,7 +19,6 @@ interface MessageBackupPluginConfig {
   readonly adminIds?: readonly string[];
   readonly policy?: unknown;
   readonly runtime?: unknown;
-  readonly mongoUsageFile?: string;
 }
 
 /** Single worker lifecycle for live capture, periodic scans and full-backup jobs. */
@@ -48,7 +47,6 @@ export const createMessageBackupPlugin = (raw: MessageBackupPluginConfig): Plugi
         translator: ctx.translator,
         guildIds,
         config,
-        mongoUsageFile: raw.mongoUsageFile,
         policy,
         backupLogEnabled: raw.backupLogEnabled ?? false,
         adminIds: [...(raw.adminIds ?? [])],

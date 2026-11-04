@@ -6,7 +6,7 @@ Omission disables the feature; invalid blocks and enabled
 moderation without `MONGO_URI` fail startup. See [thread moderation](thread-moderation.md)
 for authority, required Discord permissions, persistence and failure behavior.
 
-Each bot reads environment values from `src/bot/<name>/.env` and settings from `config.json`.
+Each bot reads secrets from `src/bot/<name>/.env` and settings from `config.json`.
 Copy its `config.example.json`, replace placeholders, and keep both local files
 out of Git. Use JSON **strings** for Discord IDs.
 
@@ -24,7 +24,6 @@ placeholders fail startup; there is no root `.env.example`.
 | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `TOKEN`, `CLIENT_ID`                                                   | Required Discord token and application ID                                                               |
 | `MONGO_URI`                                                            | Required for database-backed bots; optional for gopher                                                  |
-| `ARCHIVE_MONGO_USAGE_FILE`                                             | Isolated msg-archive capacity sample; requires `storage.mongo_data_root`                                |
 | `MONGO_RECOVERY_INTERVAL_MS`                                           | Recovery polling, default `60000`                                                                       |
 | `NODE_ENV`                                                             | `development` (default), `test`, or `production`                                                        |
 | `LOG_LEVEL`                                                            | `trace`, `debug`, `info` (default), `warn`, `error`, or `fatal`                                         |
@@ -825,19 +824,13 @@ for accepted structures and limits.
 | `storage.budget_bytes`           | `100000000000`  | Entire Pleiades budget                                          |
 | `storage.background_limit_bytes` | `85000000000`   | Background work ceiling                                         |
 | `storage.reserve_bytes`          | `5000000000`    | Budget/filesystem headroom                                      |
-| `storage.mongo_data_root`        | auto-discovered | Explicit MongoDB root; required for the isolated sampler        |
+| `storage.mongo_data_root`        | auto-discovered | Explicit MongoDB data root if discovery is unavailable          |
 | `storage.additional_roots`       | `[]`            | Other managed storage roots, re-measured every ten minutes      |
 
 The [runtime schema](../src/plugins/message-backup/config.ts) defines validation
-limits. Directly measured roots must be accessible on the worker host. Isolated
-deployments set `storage.mongo_data_root` to the verified active `storage.dbPath`
-and `ARCHIVE_MONGO_USAGE_FILE=/run/pleiades-mongo-storage/usage.json` in msg-archive's `.env`; install the
-[independent sampler](../tools/mongo-storage/README.md) before deploying msg-archive.
-The bot reads aggregate capacity only and never receives access to MongoDB files.
-Capacity includes projected writes; lowering a budget never authorizes deletion. The MongoDB data
-root is measured on every direct sample; with external sampling, the worker waits
-up to ten seconds for a sample begun after its request, rejecting missing, invalid,
-future-dated or mismatched-root measurements. The project, runtime and `additional_roots`
+limits. Storage roots must be accessible on the worker host. Capacity includes
+projected writes; lowering a budget never authorizes deletion. The MongoDB data
+root is measured on every sample; the project, the runtime and `additional_roots`
 are re-measured every ten minutes (see [capacity](message-archive.md#status-panel)).
 The worker saves its latest host measurement for `/archive status`.
 

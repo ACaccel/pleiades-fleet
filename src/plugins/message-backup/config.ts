@@ -1,4 +1,3 @@
-import { isAbsolute } from 'node:path';
 import { z } from 'zod';
 import {
   ARCHIVE_DEFAULT_INTERVAL_MS,
@@ -52,7 +51,6 @@ export function parseArchiveSettings(input: {
   backupIntervalMs?: number;
   policy?: unknown;
   runtime?: unknown;
-  mongoUsageFile?: string;
 }): {
   interval: number;
   config: ArchiveRuntimeConfig;
@@ -66,17 +64,9 @@ export function parseArchiveSettings(input: {
     (typeof input.policy !== 'object' || input.policy === null || Array.isArray(input.policy))
   )
     throw new TypeError('Archive policy must be an object');
-  const config = archiveRuntimeSchema.parse(input.runtime ?? {});
-  if (
-    input.mongoUsageFile !== undefined &&
-    (!isAbsolute(input.mongoUsageFile) ||
-      !config.storage.mongo_data_root ||
-      !isAbsolute(config.storage.mongo_data_root))
-  )
-    throw new TypeError('External sampling requires an absolute sample file and MongoDB data root');
   return {
     interval,
-    config,
+    config: archiveRuntimeSchema.parse(input.runtime ?? {}),
     policy: ArchivePolicySchema.parse({
       ...(typeof input.policy === 'object' && input.policy !== null ? input.policy : {}),
       guildIds: [...input.backupServers],

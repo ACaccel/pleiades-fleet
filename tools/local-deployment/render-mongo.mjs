@@ -36,7 +36,7 @@ ProtectControlGroups=true
 RestrictSUIDSGID=true
 CapabilityBoundingSet=
 ReadWritePaths=/var/lib/pleiades-mongo /var/log/pleiades-mongo
-UMask=0077
+UMask=0027
 StandardOutput=journal
 StandardError=journal
 

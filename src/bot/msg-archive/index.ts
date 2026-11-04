@@ -10,12 +10,5 @@ bootstrapPersonality({
   name: 'msg-archive',
   intents: [...GUILD_OBSERVER_INTENTS, GatewayIntentBits.GuildMessagePolls],
   build: (client, env) =>
-    new MsgArchive(
-      client,
-      env.TOKEN,
-      env.MONGO_URI ?? '',
-      env.CLIENT_ID,
-      config,
-      env.ARCHIVE_MONGO_USAGE_FILE,
-    ),
+    new MsgArchive(client, env.TOKEN, env.MONGO_URI ?? '', env.CLIENT_ID, config),
 });

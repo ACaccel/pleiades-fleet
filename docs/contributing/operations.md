@@ -55,16 +55,6 @@ deployment and command registration.
 
 Follow the [migration runbook](../../tools/migration/README.md) for host transfer and cutover.
 
-## Archive capacity and stale reports
-
-If `/traffic` reports no recent activity, check `/archive status` and the latest
-stored message time before changing report visibility. Under account isolation,
-check `systemctl status pleiades-mongo-storage.service` and follow the
-[capacity sampler runbook](../../tools/mongo-storage/README.md). The bot must not
-be granted access to MongoDB files. After capacity sampling and live capture
-recover, use the existing archive controls to verify periodic coverage or run a
-resumable full backup when the downtime requires it.
-
 ## Database backups
 
 `pleiades-mongo-backup.timer` dumps every application database daily into

@@ -11,14 +11,13 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 let helper: {
   acquireInstallLock(file: string, ownerUid?: number): () => void;
   validateId(value: unknown): string;
   validateManifest(value: unknown, id: string, enabled?: string[]): unknown;
   renderUnit(id: string, bot: string, timeout: number): string;
-  releaseAccessScript(selected: string[]): string;
   safeLinkTarget(root: string, path: string, target: string): string;
   copyStage(source: string, target: string, uid: number, gid: number, setOwner?: () => void): void;
   validateReleaseDirectories(directory: string, selected: string[]): void;
@@ -89,6 +88,7 @@ describe('isolated deployment privilege boundary', () => {
     const unit = helper.renderUnit(id, 'konata', 120);
     for (const expected of [
       'User=pleiades',
+      'SupplementaryGroups=pleiades-settings pleiades-mongo',
       'ProtectHome=true',
       'ProtectSystem=strict',
       'NoNewPrivileges=true',
@@ -208,63 +208,5 @@ describe('isolated deployment privilege boundary', () => {
     expect(() =>
       installer.parseArgs(['--deployer', 'acaccel', '--bots', 'tomori,tomori']),
     ).toThrow();
-  });
-});
-
-describe('isolated archive storage preflight', () => {
-  const check = (storage: Record<string, unknown>, wait = vi.fn().mockResolvedValue(undefined)) => {
-    const processState = { getuid: () => 1001, exitCode: 0 };
-    const fakeRequire = (name: string): unknown => {
-      if (name === 'node:fs')
-        return {
-          constants: { R_OK: 4, W_OK: 2, X_OK: 1 },
-          accessSync: (_file: string, mode: number) => {
-            if (mode === 2) throw new Error('read-only');
-          },
-          readFileSync: () => JSON.stringify({ backup_server: ['100000000000000001'] }),
-        };
-      if (name.endsWith('/canvas-font')) return { ensureCanvasFont: () => undefined };
-      if (name.endsWith('/canvas-emoji')) return { renderEmojiImage: () => ({}) };
-      if (name === 'dotenv') return { parse: () => ({}) };
-      if (name.endsWith('/core/config/env'))
-        return { loadEnv: () => ({ ARCHIVE_MONGO_USAGE_FILE: storage.sampleFile }) };
-      if (name.endsWith('/message-backup/config'))
-        return { parseArchiveSettings: () => ({ config: { storage } }) };
-      if (name.endsWith('/storage-sample')) return { waitForMongoStorageSample: wait };
-      return {};
-    };
-    const run = () =>
-      Function(
-        'require',
-        'process',
-        'console',
-        helper.releaseAccessScript(['msg-archive']),
-      )(fakeRequire, processState, { error: vi.fn() });
-    return { run, wait, processState };
-  };
-
-  it('refuses to stop running bots when isolated archive sampling is not configured', () => {
-    const { run, wait } = check({});
-    expect(run).toThrow('requires ARCHIVE_MONGO_USAGE_FILE');
-    expect(wait).not.toHaveBeenCalled();
-  });
-
-  it('checks a fresh sample against the configured data root before installation', () => {
-    const { run, wait } = check({
-      sampleFile: '/run/usage.json',
-      mongo_data_root: '/var/lib/database',
-    });
-    run();
-    expect(wait).toHaveBeenCalledWith('/run/usage.json', '/var/lib/database', expect.any(Number));
-  });
-
-  it('fails preflight when the sampler is unavailable', async () => {
-    const { run, processState } = check(
-      { sampleFile: '/run/usage.json', mongo_data_root: '/var/lib/database' },
-      vi.fn().mockRejectedValue(new Error('stale sample')),
-    );
-    run();
-    await Promise.resolve();
-    expect(processState.exitCode).toBe(1);
   });
 });
