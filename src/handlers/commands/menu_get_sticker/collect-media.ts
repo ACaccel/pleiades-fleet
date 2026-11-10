@@ -14,17 +14,30 @@ export const MAX_ITEMS = 10;
 
 const CUSTOM_EMOJI = /<(a?):(\w+):(\d+)>/g;
 
+/**
+ * Without a size the CDN serves animated emoji and GIF stickers as 128px
+ * thumbnails; the largest size returns the original and never upscales.
+ */
+const withOriginalSize = (url: string): string => {
+  const sized = new URL(url);
+  sized.searchParams.set('size', '4096');
+  return sized.toString();
+};
+
 /** Stickers first, then each distinct custom emoji in the text, in order of appearance. */
 export const collectMedia = (
   stickers: Collection<string, Sticker>,
   content: string,
 ): MediaItem[] => {
-  const items: MediaItem[] = [...stickers.values()].map((sticker) => ({
-    kind: 'sticker',
-    name: sticker.name,
-    url: sticker.url,
-    previewable: sticker.format !== StickerFormatType.Lottie,
-  }));
+  const items: MediaItem[] = [...stickers.values()].map((sticker) => {
+    const previewable = sticker.format !== StickerFormatType.Lottie;
+    return {
+      kind: 'sticker',
+      name: sticker.name,
+      url: previewable ? withOriginalSize(sticker.url) : sticker.url,
+      previewable,
+    };
+  });
   const seen = new Set<string>();
   for (const [, animated, name, id] of content.matchAll(CUSTOM_EMOJI)) {
     if (id === undefined || name === undefined || seen.has(id)) continue;
@@ -33,7 +46,7 @@ export const collectMedia = (
     items.push({
       kind: 'emoji',
       name,
-      url: `https://cdn.discordapp.com/emojis/${id}.${extension}`,
+      url: withOriginalSize(`https://cdn.discordapp.com/emojis/${id}.${extension}`),
       previewable: true,
     });
   }
