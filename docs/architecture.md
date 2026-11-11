@@ -447,6 +447,11 @@ manages font assets separately in `.conda-fonts/`; `PLEIADES_FONT_DIR` lets rele
 select fonts independently of the Node executable. See
 [local setup](contributing/local-setup.md#prerequisites) for installation and paths.
 
+A second, host-independent form of release is built by `npm run build:release` and
+started through `bin/start.cjs`: one read-only tree shared by several bot instances,
+with configuration, data and logs supplied through the environment. See
+[LCM release](contributing/lcm-release.md).
+
 Independent systemd units run immutable release snapshots with their own Node and
 fonts, external configuration and persistent logs/data. Deployment and runtime
 accounts have separate duties; running bots do not need repository credentials or

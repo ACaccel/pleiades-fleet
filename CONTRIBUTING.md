@@ -28,6 +28,7 @@ including optional archive inputs, permission-scoped snapshots and query budgets
 | Change persistence        | [Models and repositories](docs/contributing/persisted-models.md)                         |
 | Automate `dev` deployment | [Isolated services and Konata notifications](docs/contributing/local-auto-deployment.md) |
 | Deploy services           | [Runtime, systemd, cutover, and recovery](docs/contributing/deployment.md)               |
+| Build the LCM release     | [Launcher, instance settings, release build](docs/contributing/lcm-release.md)           |
 | Operate bots              | [Smoke checks, database recovery, and migration](docs/contributing/operations.md)        |
 | Commit or release         | [Branching and changelog rules](docs/contributing/branching-and-releases.md)             |
 

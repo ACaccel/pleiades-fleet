@@ -75,6 +75,7 @@ export default tseslint.config(
       'node_modules/**',
       'dist/**',
       'coverage/**',
+      '.release/**',
       '**/*.generated.ts',
       'src/bot/**/config.json',
       // Private operational backups may contain retired source files.
@@ -389,6 +390,13 @@ export default tseslint.config(
       'no-restricted-syntax': 'off',
       'no-restricted-imports': 'off',
     },
+  },
+  // The release launcher is CommonJS so it can register ts-node before any
+  // TypeScript is loaded; `require` is the point of the file.
+  {
+    files: ['bin/**/*.cjs'],
+    languageOptions: { sourceType: 'commonjs' },
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
   },
   prettier,
 );

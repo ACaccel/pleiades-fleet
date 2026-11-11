@@ -24,3 +24,4 @@ tools/msg_backup/tmp/
 
 /.runtime/
 /.conda-fonts/
+.release

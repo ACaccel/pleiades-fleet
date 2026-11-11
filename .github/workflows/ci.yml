@@ -69,6 +69,15 @@ jobs:
               else error("Empty Vitest projects: \(join(", "))") end
           ' "$RUNNER_TEMP/project-counts.json"
 
+  release:
+    # The LCM release must stay buildable with Node and npm alone; the build
+    # also loads every bot through the launcher, including native Canvas.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/npm-install
+      - run: npm run build:release
+
   security:
     runs-on: ubuntu-24.04
     # The only job that needs more than the workflow-level `contents:

@@ -50,10 +50,12 @@ Services:   npm run deploy:prepare | npm run deploy | npm run undeploy
             (deploy one bot: npm run deploy -t <bot>)
             (daily database backup timer: npm run backup:install | npm run backup:uninstall)
 Codegen:    npm run handlers:gen       (after adding or deleting a handler)
+Release:    npm run build:release      (LCM release in .release/; Node 24 + npm only)
 ```
 
 Runtime setup and paths: [`docs/contributing/local-setup.md`](docs/contributing/local-setup.md).
 Manual deployment: [`docs/contributing/deployment.md`](docs/contributing/deployment.md).
+LCM release build and launcher: [`docs/contributing/lcm-release.md`](docs/contributing/lcm-release.md).
 CI-gated `dev` automation and service-account isolation:
 [`docs/contributing/local-auto-deployment.md`](docs/contributing/local-auto-deployment.md).
 

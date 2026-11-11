@@ -49,3 +49,6 @@ tools/migration/*.archive.gz
 # Complete state copies retained by offline cutover recovery.
 /data.pre-cutover-*/
 /logs.pre-cutover-*/
+
+# LCM release tree written by `npm run build:release`.
+/.release

@@ -209,6 +209,7 @@ The [documentation index](docs/README.md) lists the guides under `docs/`.
 | Moderate threads                           | [Thread moderation](docs/thread-moderation.md)                      |
 | Automatically deploy `dev`                 | [Local auto-deployment](docs/contributing/local-auto-deployment.md) |
 | Deploy or update systemd services          | [Deployment](docs/contributing/deployment.md)                       |
+| Build the LCM release                      | [LCM release](docs/contributing/lcm-release.md)                     |
 | Diagnose database or connectivity problems | [Operations](docs/contributing/operations.md)                       |
 | Upgrade an existing installation           | [Upgrade notes](docs/upgrading.md)                                  |
 | Back up or restore the database            | [Database backups](tools/mongo-backup/README.md)                    |
