@@ -8,7 +8,10 @@ for authority, required Discord permissions, persistence and failure behavior.
 
 Each bot reads secrets from `src/bot/<name>/.env` and settings from `config.json`.
 Copy its `config.example.json`, replace placeholders, and keep both local files
-out of Git. Use JSON **strings** for Discord IDs.
+out of Git. Use JSON **strings** for Discord IDs. Variables already present in the
+process environment (for example from a systemd `EnvironmentFile`) take precedence
+over the `.env` file, which may be absent; `PLEIADES_CONFIG_FILE` relocates
+`config.json` (see [deployment paths](#deployment-paths)).
 
 See [local setup](contributing/local-setup.md) and
 [deployment](contributing/deployment.md) for runtime and service settings.
@@ -27,7 +30,7 @@ placeholders fail startup; there is no root `.env.example`.
 | `MONGO_RECOVERY_INTERVAL_MS`                                           | Recovery polling, default `60000`                                                                       |
 | `NODE_ENV`                                                             | `development` (default), `test`, or `production`                                                        |
 | `LOG_LEVEL`                                                            | `trace`, `debug`, `info` (default), `warn`, `error`, or `fatal`                                         |
-| `LOG_DIR`                                                              | File log root, default `logs`; empty disables file logs                                                 |
+| `LOG_DIR`                                                              | File log root, default `logs` (relative to the working directory); empty disables file logs             |
 | `LOG_RETENTION_DAYS`                                                   | Days of file logs to keep, default `60`; `0` keeps all                                                  |
 | `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `XAI_API_KEY` | Keys for enabled providers; blank means absent                                                          |
 | `CWA_API_KEY`                                                          | Optional Nijika/Tomori key for [earthquake reports](#earthquake-alerts-and-reports); blank means absent |
@@ -38,6 +41,22 @@ placeholders fail startup; there is no root `.env.example`.
 | `NOTIFY_API_KEY`                                                       | Relay bearer secret, at least 32 characters; required when `NOTIFY_API_PORT` is set                     |
 | `PLEIADES_FONT_DIR`                                                    | Optional absolute directory containing the CJK and emoji font assets; normally supplied by the launcher |
 | `PLEIADES_READY_FILE`                                                  | Deployment-managed startup marker; omit for manual startup                                              |
+| `PLEIADES_DATA_DIR`, `PLEIADES_CONFIG_FILE`                            | Optional absolute paths, see [deployment paths](#deployment-paths)                                      |
+
+### Deployment paths
+
+A read-only release (see [LCM release](contributing/lcm-release.md)) cannot write
+below its working directory. These settings move what a bot writes or reads; each
+default is the original working-directory-relative location, so the
+[systemd flow](contributing/deployment.md) needs none of them.
+
+| Variable               | Default                      | Controls                                                                                                      |
+| ---------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `PLEIADES_CONFIG_FILE` | `src/bot/<bot>/config.json`  | Absolute path of the bot's `config.json`; one file per instance                                               |
+| `PLEIADES_DATA_DIR`    | `./data`                     | Absolute writable root of `deleted_attachments/`, `attachment_cache/` and `avatars/`                          |
+| `LOG_DIR`              | `logs`                       | File logs and msg-archive transcripts (`<LOG_DIR>/backup/`); a blank value still leaves transcripts in `logs` |
+| `PLEIADES_FONT_DIR`    | `<release>/fonts` (launcher) | Canvas fonts; see [launcher settings](#runtime-launcher-settings)                                             |
+| `PLEIADES_BOT`         | none                         | Bot for [`bin/start.cjs`](../bin/start.cjs) when no argument names it                                         |
 
 ### Runtime launcher settings
 
@@ -66,8 +85,8 @@ deletes regular files named `YYYY-MM-DD.log` (bot and guild logs) or
 
 - Age comes from the file name, never from modification time. Other names and
   symlinks are left alone.
-- msg-archive transcripts live in `logs/backup/` of the working directory, so they
-  are pruned only while `LOG_DIR` is the default `logs`.
+- msg-archive transcripts live in `<LOG_DIR>/backup/` (`logs/backup/` by default), so
+  they are pruned with the rest of `LOG_DIR`.
 - A non-numeric, negative, fractional or blank value fails startup; the maximum is
   `3650`. Pruning failures are written to stderr and never stop the bot.
 

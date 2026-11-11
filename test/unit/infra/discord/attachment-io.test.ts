@@ -66,6 +66,17 @@ describe('sanitizeFileName', () => {
 describe('archiveFilePath', () => {
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllEnvs();
+  });
+
+  it('defaults to data/deleted_attachments and follows PLEIADES_DATA_DIR', () => {
+    expect(archiveFilePath('g-1', 'm-1', 'a.png')).toMatch(
+      /^data\/deleted_attachments\/g-1\/m-1\//,
+    );
+    vi.stubEnv('PLEIADES_DATA_DIR', '/var/lib/pleiades');
+    expect(archiveFilePath('g-1', 'm-1', 'a.png')).toMatch(
+      /^\/var\/lib\/pleiades\/deleted_attachments\/g-1\/m-1\//,
+    );
   });
 
   it('lands at <root>/<guildId>/<messageId>/<stamp>_<name> in zero-padded local time', () => {

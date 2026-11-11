@@ -25,10 +25,14 @@ import path from 'path';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 
+import { readDataDirectory } from '../../core/config/paths';
 import { formatFileStamp } from '../../core/time';
 
-/** Root of the forensic archive tree. `data/` is gitignored. */
-const ARCHIVE_ROOT = './data/deleted_attachments';
+/**
+ * Root of the forensic archive tree under the data directory (`data/` is
+ * gitignored; `PLEIADES_DATA_DIR` relocates it).
+ */
+const defaultArchiveRoot = (): string => path.join(readDataDirectory(), 'deleted_attachments');
 
 /**
  * Longest silence tolerated inside one CDN download: connecting, waiting
@@ -151,7 +155,7 @@ export const archiveFilePath = (
   guildId: string,
   messageId: string,
   name: string,
-  archiveRoot: string = ARCHIVE_ROOT,
+  archiveRoot: string = defaultArchiveRoot(),
 ): string => path.join(archiveRoot, guildId, sanitizeFileName(messageId), archiveFileName(name));
 
 /**

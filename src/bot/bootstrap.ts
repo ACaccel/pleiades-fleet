@@ -1,19 +1,19 @@
 /**
  * Shared entry-point body for the five personality composition roots.
  *
- * Every `src/bot/<name>/index.ts` performs the same four steps in the
- * same order — load the personality's `.env`, validate it into a typed
- * {@link Env}, construct the Discord client with that personality's
- * gateway intents, then start the bot under the {@link runOrExit}
- * failure policy. Only the intent list and the constructor call differ,
+ * Every `src/bot/<name>/index.ts` performs the same steps in the
+ * same order — load the personality's `.env` and `config.json`, validate
+ * the environment into a typed {@link Env}, construct the Discord client
+ * with that personality's gateway intents, then start the bot under the
+ * {@link runOrExit} failure policy. Only the intent list and the constructor call differ,
  * so those are the parameters and everything else lives here; a startup
  * concern added here reaches all five personalities at once.
  */
 import { Client, GatewayIntentBits, Partials } from 'discord.js';
-import dotenv from 'dotenv';
 
 import { loadEnv, type Env } from '../core/config';
 
+import { loadBotConfig, loadBotEnvFile } from './bot-files';
 import { runOrExit, type StartablePersonality } from './run-or-exit';
 
 /**
@@ -55,10 +55,10 @@ export const MESSAGE_BOT_INTENTS: readonly GatewayIntentBits[] = [
   GatewayIntentBits.MessageContent,
 ];
 
-interface BootstrapOptions {
+interface BootstrapOptions<C> {
   /**
-   * Personality directory name under `src/bot/`. Selects the `.env` file
-   * loaded before validation.
+   * Personality directory name under `src/bot/`. Selects the `.env` and
+   * `config.json` files loaded before validation.
    */
   readonly name: string;
   readonly intents: readonly GatewayIntentBits[];
@@ -69,8 +69,11 @@ interface BootstrapOptions {
     /** Require a usable `MONGO_URI`. Defaults to true. */
     readonly requireDb?: boolean;
   };
-  /** Construct the personality from its validated env and client. */
-  readonly build: (client: Client, env: Env) => StartablePersonality;
+  /**
+   * Construct the personality from its validated env and client, plus the
+   * parsed `config.json`. `C` is the shape of the committed example config.
+   */
+  readonly build: (client: Client, env: Env, config: C) => StartablePersonality;
 }
 
 /**
@@ -85,11 +88,18 @@ interface BootstrapOptions {
  */
 export const DM_PARTIALS: readonly Partials[] = [Partials.Channel];
 
-export const bootstrapPersonality = (options: BootstrapOptions): void => {
-  dotenv.config({ path: `./src/bot/${options.name}/.env` });
+export const bootstrapPersonality = <C>(options: BootstrapOptions<C>): void => {
+  loadBotEnvFile(options.name);
   const env = loadEnv({
     requireDb: options.env?.requireDb ?? true,
   });
+  let config: C;
+  try {
+    config = loadBotConfig<C>(options.name);
+  } catch (err: unknown) {
+    process.stderr.write(`bot startup failed: ${(err as Error).message}\n`);
+    process.exit(1);
+  }
   const client = new Client({
     intents: [...options.intents],
     ...(options.partials ? { partials: [...options.partials] } : {}),
@@ -98,7 +108,7 @@ export const bootstrapPersonality = (options: BootstrapOptions): void => {
   // hole in the entry-point failure path rather than a routine branch:
   // it covers a throw on the failure path itself (a logger that is bound
   // but broken). stderr is the only sink guaranteed to work there.
-  void runOrExit(options.build(client, env)).catch((err: unknown) => {
+  void runOrExit(options.build(client, env, config)).catch((err: unknown) => {
     process.stderr.write(`bot startup failed and the failure path threw: ${String(err)}\n`);
     process.exit(1);
   });

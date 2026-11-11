@@ -8,6 +8,8 @@
  */
 import * as path from 'node:path';
 
+import { readLogDirectory } from '../../../core/config/paths';
+
 /**
  * Format a `Date` as `YYYY-MM-DD_HH-MM-SS` in the operator's local
  * timezone. Colons are deliberately avoided so the result is a valid
@@ -26,13 +28,13 @@ export const formatBackupStamp = (now: Date): string => {
 
 /**
  * Build the absolute path for a guild's backup transcript under
- * `<cwd>/logs/backup/msg-archive-<guildId>-<stamp>.log`. The parent
+ * `<LOG_DIR>/backup/msg-archive-<guildId>-<stamp>.log`, resolved against the
+ * working directory while `LOG_DIR` is relative (default `logs`). The parent
  * directory is created by {@link BackupLog}'s constructor.
  */
 export const buildBackupLogPath = (guildId: string, now: Date): string =>
-  path.join(
-    process.cwd(),
-    'logs',
+  path.resolve(
+    readLogDirectory(),
     'backup',
     `msg-archive-${guildId}-${formatBackupStamp(now)}.log`,
   );

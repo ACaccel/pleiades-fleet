@@ -29,6 +29,8 @@ const FULL_SOURCE: NodeJS.ProcessEnv = {
   LOG_LEVEL: 'warn',
   LOG_RETENTION_DAYS: '30',
   PLEIADES_FONT_DIR: '/opt/pleiades-fleet/fonts',
+  PLEIADES_DATA_DIR: '/var/lib/pleiades-test',
+  PLEIADES_CONFIG_FILE: '/etc/pleiades-test/config.json',
   PLEIADES_READY_FILE: '/run/pleiades-test/ready.json',
   OPENAI_API_KEY: 'sk-openai',
   ANTHROPIC_API_KEY: 'sk-anthropic',

@@ -1,9 +1,9 @@
 import { Nijika } from './nijika';
-import config from './config.json';
+import type configShape from './config.json';
 
 import { bootstrapPersonality, DM_PARTIALS, GUILD_OBSERVER_INTENTS } from '../bootstrap';
 
-bootstrapPersonality({
+bootstrapPersonality<typeof configShape>({
   name: 'nijika',
   intents: GUILD_OBSERVER_INTENTS,
   // `/bug_report` replies reach the bot as DMs.
@@ -13,7 +13,7 @@ bootstrapPersonality({
   // the alert API stays off without a port, and report polling stays off
   // without `CWA_API_KEY`. `MONGO_INSPECT_URI` is checked by `Nijika` only
   // when `config.commands` lists `db`.
-  build: (client, env) =>
+  build: (client, env, config) =>
     new Nijika(
       client,
       env.TOKEN,

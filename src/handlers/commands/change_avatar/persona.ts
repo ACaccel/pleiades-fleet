@@ -3,14 +3,16 @@ import path from 'node:path';
 
 import { DiscordAPIError, RESTJSONErrorCodes, type GuildMember } from 'discord.js';
 
+import { readDataDirectory } from '../../../core/config/paths';
+
 import identityConfig from './identity.json';
 
 /**
- * Persona images live outside version control under the shared `data/`
- * directory, so the bot neither depends on a third-party image host nor
- * publishes artwork with the source.
+ * Persona images live outside version control under the shared data
+ * directory (`data/avatars`), so the bot neither depends on a third-party
+ * image host nor publishes artwork with the source.
  */
-const AVATAR_DIR = './data/avatars';
+const avatarDirectory = (): string => path.join(readDataDirectory(), 'avatars');
 
 export type Persona = (typeof identityConfig)[number];
 
@@ -22,7 +24,7 @@ export const findPersona = (name: string): Persona | undefined =>
 /** The persona's avatar bytes, or `null` when the operator has not installed the file. */
 export const readPersonaAvatar = async (persona: Persona): Promise<Buffer | null> => {
   try {
-    return await readFile(path.join(AVATAR_DIR, path.basename(persona.avatar_file)));
+    return await readFile(path.join(avatarDirectory(), path.basename(persona.avatar_file)));
   } catch {
     return null;
   }

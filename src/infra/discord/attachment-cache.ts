@@ -23,6 +23,7 @@ import type { Attachment } from 'discord.js';
 import fs from 'fs';
 import path from 'path';
 
+import { readDataDirectory } from '../../core/config/paths';
 import type { Logger } from '../../core/logger';
 
 import {
@@ -34,8 +35,8 @@ import {
   PARTIAL_SUFFIX,
 } from './attachment-io';
 
-/** Root of the cache tree. `data/` is gitignored. */
-const DEFAULT_CACHE_ROOT = './data/attachment_cache';
+/** Root of the cache tree under the data directory (`data/` is gitignored). */
+const defaultCacheRoot = (): string => path.join(readDataDirectory(), 'attachment_cache');
 
 const MS_PER_HOUR = 60 * 60 * 1000;
 
@@ -118,7 +119,7 @@ const completeEntries = (entries: readonly string[]): string[] =>
   entries.filter((entry) => !entry.endsWith(PARTIAL_SUFFIX));
 
 export const createAttachmentCache = (options: AttachmentCacheOptions): AttachmentCache => {
-  const cacheRoot = options.cacheRoot ?? DEFAULT_CACHE_ROOT;
+  const cacheRoot = options.cacheRoot ?? defaultCacheRoot();
   const archiveRoot = options.archiveRoot;
   const logger = options.logger;
   const ttlMs = options.ttlHours * MS_PER_HOUR;

@@ -6,5 +6,6 @@ export {
   readNpmConfigFlags,
 } from './env';
 export type { Env } from './env';
+export { readBotConfigFile, readDataDirectory, readLogDirectory } from './paths';
 export { REDACT_FIELD_NAMES, buildPinoRedactPaths } from './redact';
 export { createBootstrapLogger } from './bootstrap-logger';

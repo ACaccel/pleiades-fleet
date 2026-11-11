@@ -9,7 +9,6 @@ vi.mock('@cmd', () => barrelStubs.cmd);
 vi.mock('@button', () => barrelStubs.button);
 vi.mock('@modal', () => barrelStubs.modal);
 vi.mock('@select-menu', () => barrelStubs.selectMenu);
-vi.mock('../../../src/bot/gopher/config.json', () => ({ default: { commands: ['help'] } }));
 vi.mock('../../../src/bot/bootstrap', async (original) => ({
   ...(await original<typeof Bootstrap>()),
   bootstrapPersonality: vi.fn(),
@@ -32,6 +31,8 @@ describe('Gopher startup', () => {
 
     expect(env.EARTHQUAKE_ALERT_PORT).toBeUndefined();
     expect(env.MONGO_URI).toBeUndefined();
-    expect(options.build(buildInertClient(), env)).toBeInstanceOf(Gopher);
+    expect(options.build(buildInertClient(), env, { commands: ['help'] } as never)).toBeInstanceOf(
+      Gopher,
+    );
   });
 });

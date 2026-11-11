@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   buildBackupLogPath,
@@ -8,6 +8,10 @@ import {
 } from '../../../src/plugins/message-backup/internal/log-path';
 
 describe('message-backup log-path', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   describe('formatBackupStamp', () => {
     it('formats a local-time Date as YYYY-MM-DD_HH-MM-SS with zero padding', () => {
       // Local-time constructor: month is 0-based, so 2 === March.
@@ -32,6 +36,13 @@ describe('message-backup log-path', () => {
         'msg-archive-guild-1-2026-03-05_09-07-03.log',
       );
       expect(buildBackupLogPath('guild-1', date)).toBe(expected);
+    });
+
+    it('follows an absolute LOG_DIR', () => {
+      vi.stubEnv('LOG_DIR', '/var/log/pleiades');
+      expect(buildBackupLogPath('guild-1', new Date(2026, 2, 5, 9, 7, 3))).toBe(
+        '/var/log/pleiades/backup/msg-archive-guild-1-2026-03-05_09-07-03.log',
+      );
     });
   });
 });

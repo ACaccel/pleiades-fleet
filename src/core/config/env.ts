@@ -104,6 +104,16 @@ const envShape = {
     .string()
     .refine(path.isAbsolute, 'PLEIADES_FONT_DIR must be absolute')
     .optional(),
+  /** Writable data root for attachments and persona images; unset keeps `./data`. */
+  PLEIADES_DATA_DIR: z
+    .string()
+    .refine(path.isAbsolute, 'PLEIADES_DATA_DIR must be absolute')
+    .optional(),
+  /** Absolute path of the bot's `config.json`; unset keeps the file beside its entry point. */
+  PLEIADES_CONFIG_FILE: z
+    .string()
+    .refine(path.isAbsolute, 'PLEIADES_CONFIG_FILE must be absolute')
+    .optional(),
   /** Deployment-owned marker path; unset for ordinary interactive startup. */
   PLEIADES_READY_FILE: z
     .string()
