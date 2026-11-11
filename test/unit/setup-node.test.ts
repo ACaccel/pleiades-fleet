@@ -16,7 +16,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 const installer = pathToFileURL(resolve('scripts/setup-node.mjs')).href;
 let root: string;
-const name = 'node-v22.23.4-linux-x64';
+const name = 'node-v24.22.1-linux-x64';
 let archive: string;
 
 function install(overrides = '', corruptChecksum = false, failDownload = false) {
@@ -39,14 +39,14 @@ try {
 
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'pleiades-node-setup-'));
-  writeFileSync(join(root, '.nvmrc'), '22.23.4\n');
+  writeFileSync(join(root, '.nvmrc'), '24.22.1\n');
   const fixture = join(root, 'fixture', name);
   mkdirSync(join(fixture, 'bin'), { recursive: true });
   mkdirSync(join(fixture, 'lib/node_modules/npm/bin'), { recursive: true });
   writeFileSync(
     join(fixture, 'bin/node'),
     `#!/bin/sh
-if [ "$1" = "--version" ]; then echo v22.23.4;
+if [ "$1" = "--version" ]; then echo v24.22.1;
 elif [ "$2" = "--version" ]; then echo 10.9.2;
 else exit 0; fi
 `,
@@ -63,7 +63,7 @@ describe('official Node.js setup', () => {
   it('uses only official HTTPS URLs and rejects HTTP download failures without publishing', () => {
     const harness = `import { installNode } from ${JSON.stringify(installer)};
     globalThis.fetch = async (url, options) => {
-      if (url.href !== 'https://nodejs.org/dist/v22.23.4/SHASUMS256.txt' || options.redirect !== 'error' || !options.signal) throw new Error('Unsafe request');
+      if (url.href !== 'https://nodejs.org/dist/v24.22.1/SHASUMS256.txt' || options.redirect !== 'error' || !options.signal) throw new Error('Unsafe request');
       return { ok:false, status:503 };
     };
     try { await installNode({root:${JSON.stringify(root)},platform:'linux',arch:'x64'}); }
@@ -85,9 +85,9 @@ describe('official Node.js setup', () => {
     expect(
       JSON.parse(readFileSync(join(destination, '.pleiades-runtime.json'), 'utf8')),
     ).toMatchObject({
-      version: '22.23.4',
+      version: '24.22.1',
       npmVersion: '10.9.2',
-      source: `https://nodejs.org/dist/v22.23.4/${name}.tar.xz`,
+      source: `https://nodejs.org/dist/v24.22.1/${name}.tar.xz`,
     });
     expect(readdirSync(join(root, '.runtime'))).toEqual([name]);
     expect(install('', false, true).status).toBe(0);
@@ -114,10 +114,10 @@ describe('official Node.js setup', () => {
   );
 
   it('rejects a floating or malformed pin', () => {
-    writeFileSync(join(root, '.nvmrc'), '22\n');
+    writeFileSync(join(root, '.nvmrc'), '24\n');
     const result = install('', false, true);
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain('exact Node.js 22 version');
+    expect(result.stderr).toContain('exact Node.js 24 version');
   });
 
   it('refuses to overwrite an existing unverified runtime', () => {

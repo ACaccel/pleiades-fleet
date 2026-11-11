@@ -29,7 +29,7 @@ beforeEach(() => {
   writeFileSync(
     join(prefix, 'bin/node'),
     `#!/bin/sh
-if [ "$1" = "--version" ]; then echo v22.23.4; else exec '${process.execPath.replace(/'/g, "'\\''")}' "$@"; fi
+if [ "$1" = "--version" ]; then echo v24.22.1; else exec '${process.execPath.replace(/'/g, "'\\''")}' "$@"; fi
 `,
     { mode: 0o755 },
   );
@@ -90,7 +90,7 @@ else console.log(JSON.stringify({ args: process.argv.slice(2), manager: process.
     writeFileSync(join(prefix, 'bin/node'), '#!/bin/sh\necho v18.20.0\n', {
       mode: 0o755,
     });
-    expect(run('path').stderr).toContain('requires Node 22.23.4');
+    expect(run('path').stderr).toContain('requires Node 24.22.1');
     mkdirSync(join(prefix, 'etc/conda/activate.d'), { recursive: true });
     writeFileSync(join(prefix, 'etc/conda/activate.d/example.sh'), 'export EXAMPLE=1');
     expect(run('path').stderr).toContain('activation hooks');

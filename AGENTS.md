@@ -22,7 +22,7 @@ in strict mode.
 
 ## Tech stack and versions
 
-- Runtime: official Node.js `22.23.4` (authoritative pin: `.nvmrc`) · npm `10.9.2`
+- Runtime: official Node.js `24.22.1` (authoritative pin: `.nvmrc`) · npm `10.9.2`
   under `.runtime/`; Conda manages fonts only in `.conda-fonts/`.
 - Language: TypeScript `^5.6` (strict; `tsconfig.strict.json`)
 - Discord: discord.js `^14.21`

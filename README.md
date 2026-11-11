@@ -5,7 +5,7 @@ Each bot runs as its own process and composes its features from a shared plugin
 system, with English and Traditional Chinese replies throughout.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/node-22.23.4-brightgreen)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/node-24.22.1-brightgreen)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue)](tsconfig.strict.json)
 
 ## Bots

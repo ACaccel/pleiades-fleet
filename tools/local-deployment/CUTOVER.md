@@ -12,7 +12,7 @@ This is a reviewed administrator procedure, not an automatic application deploym
 
 ## Preparation before stopping services
 
-1. Complete the full gate. Install the root-owned controller snapshot with its `--prepare` mode first. It must provide `/opt/pleiades-auto-deploy/current/runtime/bin/node` (official 22.23.4); do not enable its timer.
+1. Complete the full gate. Install the root-owned controller snapshot with its `--prepare` mode first. It must provide `/opt/pleiades-auto-deploy/current/runtime/bin/node` (the official version pinned in `.nvmrc`); do not enable its timer.
 2. Review and render scaffolding as an ordinary user:
 
    ```sh

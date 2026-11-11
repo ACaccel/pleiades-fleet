@@ -35,13 +35,13 @@ function file(relative: string, content = ''): string {
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'pleiades-release-'));
   vi.stubEnv('PLEIADES_CONDA_PREFIX', join(root, '.conda-fonts'));
-  file('.nvmrc', '22.23.4');
+  file('.nvmrc', '24.22.1');
   file(
     '.conda/.pleiades-runtime.json',
     JSON.stringify({
-      version: '22.23.4',
+      version: '24.22.1',
       npmVersion: '10.9.2',
-      source: `https://nodejs.org/dist/v22.23.4/node-v22.23.4-linux-${process.arch}.tar.xz`,
+      source: `https://nodejs.org/dist/v24.22.1/node-v24.22.1-linux-${process.arch}.tar.xz`,
       sha256: 'a'.repeat(64),
     }),
   );
@@ -68,7 +68,7 @@ beforeEach(() => {
   };
   commands.run.mockReset();
   commands.run.mockImplementation((program: string, args: string[]) => {
-    if (program.endsWith('/node') && args[0] === '--version') return 'v22.23.4';
+    if (program.endsWith('/node') && args[0] === '--version') return 'v24.22.1';
     if (program.endsWith('/node') && args[0]?.endsWith('npm-cli.js')) return '10.9.2';
     if (program.endsWith('/mongod')) return 'db version v7.0.34';
     if (program === 'git') return 'src/bot/tomori/.env\0src/bot/tomori/config.json\0';
@@ -198,7 +198,7 @@ describe('release preparation', () => {
   });
   it('removes the incomplete release when systemd validation fails', () => {
     commands.run.mockImplementation((program: string, args: string[]) => {
-      if (program.endsWith('/node') && args[0] === '--version') return 'v22.23.4';
+      if (program.endsWith('/node') && args[0] === '--version') return 'v24.22.1';
       if (program.endsWith('/node') && args[0]?.endsWith('npm-cli.js')) return '10.9.2';
       if (program === 'systemd-analyze') throw new Error('Invalid unit');
       return '';

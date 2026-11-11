@@ -14,14 +14,14 @@ const metadataName = '.pleiades-runtime.json';
 
 export async function runtimeVersion(root = projectRoot) {
   const version = (await readFile(join(root, '.nvmrc'), 'utf8')).trim();
-  if (!/^22\.\d+\.\d+$/.test(version)) {
-    throw new Error('.nvmrc must pin an exact Node.js 22 version.');
+  if (!/^24\.\d+\.\d+$/.test(version)) {
+    throw new Error('.nvmrc must pin an exact Node.js 24 version.');
   }
   return version;
 }
 
 export function runtimeName(version, platform = hostPlatform(), architecture = hostArch()) {
-  if (!/^22\.\d+\.\d+$/.test(version)) throw new Error('Invalid pinned Node.js version.');
+  if (!/^24\.\d+\.\d+$/.test(version)) throw new Error('Invalid pinned Node.js version.');
   if (platform !== 'linux' || !['x64', 'arm64'].includes(architecture)) {
     throw new Error('Official runtime setup supports Linux x64 and arm64 only.');
   }

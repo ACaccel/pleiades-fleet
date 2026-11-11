@@ -4,7 +4,7 @@
   "description": "Multi-personality Discord bot framework on TypeScript, discord.js and MongoDB, with a layered plugin architecture and bilingual i18n.",
   "private": true,
   "engines": {
-    "node": ">=22.13.0"
+    "node": ">=24.22.1"
   },
   "scripts": {
     "install-lock": "node scripts/runtime.mjs exec npm ci",

@@ -1,5 +1,15 @@
 # Upgrade notes
 
+## Node.js 24
+
+`.nvmrc` pins Node.js 24.22.1 (npm stays 10.9.2 for the project runtime). Run
+`bash scripts/setup-env.sh` to install it next to the old runtime under `.runtime/`.
+The automatic `dev` deployment prepares releases with the runtime pinned in
+`.nvmrc`, so prepare a Node 24 controller runtime before it deploys this change
+(see [cutover](../tools/local-deployment/CUTOVER.md)). Bots also gain
+`PLEIADES_CONFIG_FILE`, `PLEIADES_DATA_DIR`, `PLEIADES_BOT` and the
+[LCM release](contributing/lcm-release.md); existing settings and paths are unchanged.
+
 ## Shared MongoDB data access
 
 Bot units now join the `pleiades-mongo` group so msg-archive measures the MongoDB

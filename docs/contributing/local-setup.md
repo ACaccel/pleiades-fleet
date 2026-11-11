@@ -38,7 +38,7 @@ application; the launcher defaults it to `<PLEIADES_CONDA_PREFIX>/fonts`.
 See [configuration](../configuration.md#runtime-launcher-settings).
 Vitest 3 uses the scoped Tinypool 2.1.2 override in `package.json` to include its
 prototype-pollution fixes. Tinypool 2 requires Node 20 or later; the project uses
-Node 22. Keep the override until the selected Vitest release depends on a patched
+Node 24. Keep the override until the selected Vitest release depends on a patched
 pool, and run the full coverage suite after changing it.
 
 Canvas fonts come from conda-forge packages pinned in `environment.yml`; no font file

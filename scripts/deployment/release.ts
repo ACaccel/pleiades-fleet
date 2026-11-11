@@ -53,8 +53,8 @@ export function validatePrefix(prefix: string, executable: string): void {
 }
 export function runtimePrefixFor(root: string, config: DeploymentConfig): string {
   const version = readFileSync(join(root, '.nvmrc'), 'utf8').trim();
-  if (!/^22\.\d+\.\d+$/.test(version))
-    throw new Error('.nvmrc must pin an exact Node.js 22 version');
+  if (!/^24\.\d+\.\d+$/.test(version))
+    throw new Error('.nvmrc must pin an exact Node.js 24 version');
   if (platform() !== 'linux' || !['x64', 'arm64'].includes(arch()))
     throw new Error('Deployment supports Linux x64 and arm64 only');
   const prefix = realpathSync(
@@ -67,7 +67,7 @@ export function runtimePrefixFor(root: string, config: DeploymentConfig): string
   return prefix;
 }
 function validateNodePrefix(prefix: string, expectedVersion: string): void {
-  if (!/^22\.\d+\.\d+$/.test(expectedVersion) || !existsSync(join(prefix, 'bin/node')))
+  if (!/^24\.\d+\.\d+$/.test(expectedVersion) || !existsSync(join(prefix, 'bin/node')))
     throw new Error(`Missing official Node.js runtime at ${prefix}; run its setup script`);
   const metadata = JSON.parse(
     readFileSync(join(prefix, '.pleiades-runtime.json'), 'utf8'),
