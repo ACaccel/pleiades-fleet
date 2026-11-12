@@ -59,6 +59,20 @@ All instances share the release; each has its own environment (systemd
 | `PLEIADES_DATA_DIR`, `LOG_DIR`              | Absolute paths inside the writable state directory (for example `/var/lib/pleiades/{data,logs}`) |
 | `NOTIFY_API_PORT` / `EARTHQUAKE_ALERT_PORT` | The instance's port, for the bots that expose an API ([configuration](../configuration.md))      |
 
+Keys by bot (names only; the shared ones may live in one common environment file):
+
+| Bot                | Per-bot keys                                                | Port (bound to 127.0.0.1) |
+| ------------------ | ----------------------------------------------------------- | ------------------------- |
+| `konata`           | `TOKEN`, `CLIENT_ID`, `XAI_API_KEY`, `NOTIFY_API_KEY`       | `NOTIFY_API_PORT`         |
+| `nijika`, `tomori` | `TOKEN`, `CLIENT_ID`, `EARTHQUAKE_ALERT_KEY`, `CWA_API_KEY` | `EARTHQUAKE_ALERT_PORT`   |
+| `nijika` only      | `MONGO_INSPECT_URI` (once `/db` is enabled)                 |                           |
+| `msg-archive`      | `TOKEN`, `CLIENT_ID`                                        | none                      |
+
+`MONGO_URI` is required by every bot except `gopher`; the logging, data-directory and
+wait settings (`LOG_LEVEL`, `LOG_RETENTION_DAYS`, `MONGO_READY_TIMEOUT_SECONDS`,
+`MONGO_RECOVERY_INTERVAL_MS`) are optional and shared. The listeners ignore `PORT` and
+`HOST`; set the port variable to the port LCM grants.
+
 Every database-backed bot waits for MongoDB to answer (`MONGO_READY_TIMEOUT_SECONDS`,
 default 120 s) before it logs in to Discord and exits 1 on a timeout, so a unit needs
 no `ExecStartPre` probe and `Restart=on-failure` covers a database that stays down. The
@@ -108,4 +122,6 @@ above are the single-service form.
   service's state directory or are pointed at through `PLEIADES_DATA_DIR` and `LOG_DIR`.
 - Not handled by the launcher: msg-archive measures MongoDB's data directory for its
   storage budget and so needs read access to it (today through the `pleiades-mongo`
-  group).
+  group). The budget also counts the release and the Node runtime, but not a state
+  directory outside the release: list it in `archive_runtime.storage.additional_roots`
+  of msg-archive's `config.json`.
