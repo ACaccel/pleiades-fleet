@@ -59,6 +59,12 @@ All instances share the release; each has its own environment (systemd
 | `PLEIADES_DATA_DIR`, `LOG_DIR`              | Absolute paths inside the writable state directory (for example `/var/lib/pleiades/{data,logs}`) |
 | `NOTIFY_API_PORT` / `EARTHQUAKE_ALERT_PORT` | The instance's port, for the bots that expose an API ([configuration](../configuration.md))      |
 
+Every database-backed bot waits for MongoDB to answer (`MONGO_READY_TIMEOUT_SECONDS`,
+default 120 s) before it logs in to Discord and exits 1 on a timeout, so a unit needs
+no `ExecStartPre` probe and `Restart=on-failure` covers a database that stays down. The
+[systemd flow](deployment.md) keeps its probe; the in-app wait then returns at once.
+`PLEIADES_READY_FILE` is optional: unset, no marker is written.
+
 The working directory is read-only, so `PLEIADES_DATA_DIR` and `LOG_DIR` must be set;
 the defaults (`./data`, `logs`) are inside the release. See
 [deployment paths](../configuration.md#deployment-paths).

@@ -40,6 +40,9 @@ import { DEFAULT_LOG_RETENTION_DAYS, parseLogRetentionDays } from '../logger/log
 const PLACEHOLDER_TOKEN_PATTERN =
   /(your[_-]?(token|client[_-]?id|secret)|xxx{2,}|changeme|placeholder|example|todo)/i;
 
+/** Default for `MONGO_READY_TIMEOUT_SECONDS`, matching the legacy `ExecStartPre` probe. */
+const DEFAULT_MONGO_READY_TIMEOUT_SECONDS = 120;
+
 const nonPlaceholder = (label: string) =>
   z
     .string()
@@ -127,6 +130,14 @@ const envShape = {
    * nijika enables that command; startup rejects an account that can write.
    */
   MONGO_INSPECT_URI: mongoUriSchema('MONGO_INSPECT_URI').optional(),
+  /**
+   * Seconds a bot waits for MongoDB to accept connections before it logs in
+   * to Discord; `0` skips the wait. A blank value keeps the default.
+   */
+  MONGO_READY_TIMEOUT_SECONDS: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim().length === 0 ? undefined : v),
+    z.coerce.number().int().min(0).max(600).default(DEFAULT_MONGO_READY_TIMEOUT_SECONDS),
+  ),
   /** Cooldown and polling interval for transient per-guild connection failures. */
   MONGO_RECOVERY_INTERVAL_MS: z.coerce.number().int().positive().max(2_147_483_647).default(60_000),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),

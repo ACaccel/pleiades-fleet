@@ -27,6 +27,7 @@ placeholders fail startup; there is no root `.env.example`.
 | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `TOKEN`, `CLIENT_ID`                                                   | Required Discord token and application ID                                                               |
 | `MONGO_URI`                                                            | Required for database-backed bots; optional for gopher                                                  |
+| `MONGO_READY_TIMEOUT_SECONDS`                                          | Seconds to wait for MongoDB before login, default `120`; `0` skips; a timeout exits 1                   |
 | `MONGO_RECOVERY_INTERVAL_MS`                                           | Recovery polling, default `60000`                                                                       |
 | `NODE_ENV`                                                             | `development` (default), `test`, or `production`                                                        |
 | `LOG_LEVEL`                                                            | `trace`, `debug`, `info` (default), `warn`, `error`, or `fatal`                                         |

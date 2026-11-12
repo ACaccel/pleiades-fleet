@@ -12,6 +12,7 @@
 import { Client, GatewayIntentBits, Partials } from 'discord.js';
 
 import { loadEnv, type Env } from '../core/config';
+import { waitForMongoReady } from '../infra/mongo/ready';
 
 import { loadBotConfig, loadBotEnvFile } from './bot-files';
 import { runOrExit, type StartablePersonality } from './run-or-exit';
@@ -90,9 +91,8 @@ export const DM_PARTIALS: readonly Partials[] = [Partials.Channel];
 
 export const bootstrapPersonality = <C>(options: BootstrapOptions<C>): void => {
   loadBotEnvFile(options.name);
-  const env = loadEnv({
-    requireDb: options.env?.requireDb ?? true,
-  });
+  const requireDb = options.env?.requireDb ?? true;
+  const env = loadEnv({ requireDb });
   let config: C;
   try {
     config = loadBotConfig<C>(options.name);
@@ -100,15 +100,39 @@ export const bootstrapPersonality = <C>(options: BootstrapOptions<C>): void => {
     process.stderr.write(`bot startup failed: ${(err as Error).message}\n`);
     process.exit(1);
   }
-  const client = new Client({
-    intents: [...options.intents],
-    ...(options.partials ? { partials: [...options.partials] } : {}),
-  });
+  let bot: StartablePersonality | undefined;
+  // The database wait comes first so a bot started before MongoDB accepts
+  // connections stays out of Discord, instead of logging in with its guilds
+  // disabled; a timeout exits non-zero for the supervisor to restart.
+  const startup: StartablePersonality = {
+    get logger() {
+      return bot?.logger;
+    },
+    run: async () => {
+      if (requireDb && env.MONGO_URI !== undefined && env.MONGO_READY_TIMEOUT_SECONDS > 0) {
+        await waitForMongoReady(env.MONGO_URI, env.MONGO_READY_TIMEOUT_SECONDS, {
+          onUnavailable: () =>
+            process.stderr.write(
+              `waiting up to ${env.MONGO_READY_TIMEOUT_SECONDS} s for MongoDB to accept connections\n`,
+            ),
+        });
+      }
+      const client = new Client({
+        intents: [...options.intents],
+        ...(options.partials ? { partials: [...options.partials] } : {}),
+      });
+      bot = options.build(client, env, config);
+      await bot.run();
+    },
+    shutdown: async () => {
+      await bot?.shutdown?.();
+    },
+  };
   // `runOrExit` is written to always resolve, so the `catch` is the last
   // hole in the entry-point failure path rather than a routine branch:
   // it covers a throw on the failure path itself (a logger that is bound
   // but broken). stderr is the only sink guaranteed to work there.
-  void runOrExit(options.build(client, env, config)).catch((err: unknown) => {
+  void runOrExit(startup).catch((err: unknown) => {
     process.stderr.write(`bot startup failed and the failure path threw: ${String(err)}\n`);
     process.exit(1);
   });
