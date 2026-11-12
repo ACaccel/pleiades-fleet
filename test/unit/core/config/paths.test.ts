@@ -28,6 +28,15 @@ describe('deployment paths', () => {
     expect(readLogDirectory({ LOG_DIR: '  ' })).toBe('logs');
   });
 
+  it('keeps transcripts below the data root when LOG_DIR is blank and the data root is set', () => {
+    expect(readLogDirectory({ LOG_DIR: '', PLEIADES_DATA_DIR: '/var/lib/pleiades' })).toBe(
+      '/var/lib/pleiades/logs',
+    );
+    expect(readLogDirectory({ PLEIADES_DATA_DIR: '/var/lib/pleiades' })).toBe(
+      '/var/lib/pleiades/logs',
+    );
+  });
+
   it.each(['', 'relative/dir'])('rejects a non-absolute data directory: %j', (value) => {
     expect(() => readDataDirectory({ PLEIADES_DATA_DIR: value })).toThrow('must be absolute');
   });

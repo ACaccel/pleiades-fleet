@@ -51,13 +51,13 @@ below its working directory. These settings move what a bot writes or reads; eac
 default is the original working-directory-relative location, so the
 [systemd flow](contributing/deployment.md) needs none of them.
 
-| Variable               | Default                      | Controls                                                                                                      |
-| ---------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `PLEIADES_CONFIG_FILE` | `src/bot/<bot>/config.json`  | Absolute path of the bot's `config.json`; one file per instance                                               |
-| `PLEIADES_DATA_DIR`    | `./data`                     | Absolute writable root of `deleted_attachments/`, `attachment_cache/` and `avatars/`                          |
-| `LOG_DIR`              | `logs`                       | File logs and msg-archive transcripts (`<LOG_DIR>/backup/`); a blank value still leaves transcripts in `logs` |
-| `PLEIADES_FONT_DIR`    | `<release>/fonts` (launcher) | Canvas fonts; see [launcher settings](#runtime-launcher-settings)                                             |
-| `PLEIADES_BOT`         | none                         | Bot for [`bin/start.cjs`](../bin/start.cjs) when no argument names it                                         |
+| Variable               | Default                      | Controls                                                                                                                               |
+| ---------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `PLEIADES_CONFIG_FILE` | `src/bot/<bot>/config.json`  | Absolute path of the bot's `config.json`; one file per instance                                                                        |
+| `PLEIADES_DATA_DIR`    | `./data`                     | Absolute writable root of `deleted_attachments/`, `attachment_cache/` and `avatars/`                                                   |
+| `LOG_DIR`              | `logs`                       | File logs and msg-archive transcripts (`<LOG_DIR>/backup/`); a blank value puts transcripts in `<PLEIADES_DATA_DIR>/logs`, else `logs` |
+| `PLEIADES_FONT_DIR`    | `<release>/fonts` (launcher) | Canvas fonts; see [launcher settings](#runtime-launcher-settings)                                                                      |
+| `PLEIADES_BOT`         | none                         | Bot for [`bin/start.cjs`](../bin/start.cjs) when no argument names it                                                                  |
 
 ### Runtime launcher settings
 

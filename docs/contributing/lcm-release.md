@@ -66,7 +66,9 @@ no `ExecStartPre` probe and `Restart=on-failure` covers a database that stays do
 `PLEIADES_READY_FILE` is optional: unset, no marker is written.
 
 The working directory is read-only, so `PLEIADES_DATA_DIR` and `LOG_DIR` must be set;
-the defaults (`./data`, `logs`) are inside the release. See
+the defaults (`./data`, `logs`) are inside the release. In production a non-empty
+`LOG_DIR` sends the logs to files only; a blank `LOG_DIR` sends them to stdout (the
+journal) and msg-archive transcripts go to `<PLEIADES_DATA_DIR>/logs`. See
 [deployment paths](../configuration.md#deployment-paths).
 
 ## LCM document fields

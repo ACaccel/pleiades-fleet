@@ -35,12 +35,18 @@ export const readDataDirectory = (source: NodeJS.ProcessEnv = process.env): stri
 
 /**
  * Root of the file logs. Mirrors the bootstrap logger's `LOG_DIR`, except that
- * a blank value (which disables the logger's file output) falls back to the
- * default because transcripts written by a plugin still need a location.
+ * a blank value (which disables the logger's file output) still needs a
+ * location because transcripts written by a plugin must go somewhere: `logs`
+ * below the data root when `PLEIADES_DATA_DIR` is set, so a deployment that
+ * logs to the journal stays inside its writable state, else `logs` relative
+ * to the working directory.
  */
 export const readLogDirectory = (source: NodeJS.ProcessEnv = process.env): string => {
   const configured = source.LOG_DIR?.trim();
-  return configured ? configured : DEFAULT_LOG_DIRECTORY;
+  if (configured) return configured;
+  return source.PLEIADES_DATA_DIR === undefined
+    ? DEFAULT_LOG_DIRECTORY
+    : path.join(readDataDirectory(source), DEFAULT_LOG_DIRECTORY);
 };
 
 /**
