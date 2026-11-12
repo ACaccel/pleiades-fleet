@@ -26,7 +26,7 @@ in strict mode.
   under `.runtime/`; Conda manages fonts only in `.conda-fonts/`.
 - Language: TypeScript `^5.6` (strict; `tsconfig.strict.json`)
 - Discord: discord.js `^14.21`
-- Persistence: Mongoose `^8.22` / MongoDB
+- Persistence: Mongoose `^8.24` / MongoDB
 - Validation: zod `^4.6` · i18n: i18next `^23.15` · Logging: pino `^10` ·
   HTTP: express `^4.21` · Charts: `canvas` `^3`
 - LLM SDKs: `@anthropic-ai/sdk` `^0.94`, `openai` `^6`,
