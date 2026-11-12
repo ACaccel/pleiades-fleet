@@ -10,7 +10,8 @@
  * decision back to the supervisor, which is the only component that can
  * make it.
  */
-import { logError, type Logger } from '../core/logger';
+import { flushFileSinks, logError, type Logger } from '../core/logger';
+import { scrubForLog } from '../core/logger/scrub-for-log';
 
 /**
  * The slice of a personality this module needs. Structural rather than
@@ -44,6 +45,41 @@ interface RunOrExitOptions {
 const FAILURE_SHUTDOWN_TIMEOUT_MS = 2_000;
 
 /**
+ * Bound on draining the file log before exit. Short because the failure
+ * is already on stderr; the flush only adds the log-file copy.
+ */
+const FAILURE_LOG_FLUSH_TIMEOUT_MS = 1_000;
+
+/**
+ * Write the startup failure to stderr as one NDJSON line.
+ *
+ * Independent of the logger on purpose: with `LOG_DIR` set the logger
+ * writes to files only, and an async file sink may not have flushed by
+ * the time the process exits, so stderr (the supervisor's journal) is
+ * the one sink that is certain to carry the cause. The error goes
+ * through {@link scrubForLog}, the same scrub every logger call applies,
+ * so URL credentials in a message or stack are masked.
+ */
+const reportStartupFailure = (err: unknown, loggerBound: boolean): void => {
+  const detail = scrubForLog(err);
+  const fields =
+    err instanceof Error && typeof detail === 'object' && detail !== null
+      ? (detail as Record<string, unknown>)
+      : { raw: detail };
+  process.stderr.write(
+    `${JSON.stringify({
+      level: 60,
+      levelLabel: 'fatal',
+      event: 'bot_startup_failed',
+      loggerBound,
+      pid: process.pid,
+      time: Date.now(),
+      ...fields,
+    })}\n`,
+  );
+};
+
+/**
  * Start `bot`, exiting the process with status 1 if startup fails.
  *
  * The returned promise always resolves; the failure is terminal, so
@@ -58,22 +94,15 @@ export const runOrExit = async (
     await bot.run();
     return;
   } catch (err: unknown) {
-    if (bot.logger !== undefined) {
-      logError(bot.logger, null, err);
-    } else {
-      // The logger is bound in the first startup phase, so reaching
-      // here means the failure preceded it. stderr is the only sink
-      // guaranteed to exist that early.
-      process.stderr.write(
-        `bot startup failed before the logger was bound: ${
-          err instanceof Error ? (err.stack ?? err.message) : String(err)
-        }\n`,
-      );
-    }
+    reportStartupFailure(err, bot.logger !== undefined);
+    // Also record it through the logger (file sink, pretty console).
+    logError(bot.logger, null, err);
     // Startup may have got far enough to bind a port or open a
     // connection before it failed; release what it can, bounded, then
     // hand the restart decision to the supervisor.
     await releaseBoundResources(bot);
+    // `process.exit` discards file writes still queued in the sink.
+    await flushFileSinks(FAILURE_LOG_FLUSH_TIMEOUT_MS);
     exit(1);
   }
 };

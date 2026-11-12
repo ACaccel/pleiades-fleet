@@ -133,6 +133,41 @@ const endStreamAsync = (stream: WriteStream): Promise<void> =>
   });
 
 /**
+ * Flush hooks of every open file-router stream. A module-level registry
+ * keeps the {@link Logger} surface free of a flush method while still
+ * letting a process that is about to call `process.exit` drain the
+ * buffered file writes (see {@link flushFileSinks}).
+ */
+const liveFlushers = new Set<() => Promise<void>>();
+
+/**
+ * Wait until every record written so far to an open file-router sink has
+ * reached its file, or `timeoutMs` has elapsed. Never rejects and never
+ * closes a sink.
+ *
+ * `fs.WriteStream` opens its file and writes asynchronously, so a record
+ * logged right before `process.exit` is otherwise lost. Callers on a
+ * fatal exit path await this first; the bound keeps a stuck disk from
+ * holding the exit.
+ */
+export const flushFileSinks = async (timeoutMs: number): Promise<void> => {
+  if (liveFlushers.size === 0) return;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, timeoutMs);
+    timer.unref?.();
+  });
+  try {
+    await Promise.race([
+      Promise.all(Array.from(liveFlushers, (flush) => flush())).then(() => undefined),
+      deadline,
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+};
+
+/**
  * Build a pino-compatible `Writable` that routes each JSON Lines
  * record to a per-(bot,guild) file with local-date rotation. Pass
  * the returned stream into `pino.multistream(...)` alongside any
@@ -263,6 +298,25 @@ export const createFileRouterStream = (options: FileRouterOptions): Writable => 
     return fresh;
   };
 
+  // A zero-length write completes only after every earlier write to the
+  // same stream, including the one waiting for the file to open. An
+  // errored or destroyed stream completes it with an error, which is
+  // ignored: the failure is already reported and there is nothing left
+  // to wait for.
+  const flush = (): Promise<void> =>
+    Promise.all(
+      Array.from(
+        cache.values(),
+        ({ stream }) =>
+          new Promise<void>((resolve) => {
+            stream.write('', () => {
+              resolve();
+            });
+          }),
+      ),
+    ).then(() => undefined);
+  liveFlushers.add(flush);
+
   return new Writable({
     decodeStrings: false,
     write(chunk: string | Buffer, _enc, cb): void {
@@ -289,6 +343,7 @@ export const createFileRouterStream = (options: FileRouterOptions): Writable => 
     destroy(err, cb): void {
       // `destroy` skips `final`, so stop the schedule here too.
       retention?.stop();
+      liveFlushers.delete(flush);
       cb(err);
     },
     final(cb): void {
@@ -296,6 +351,7 @@ export const createFileRouterStream = (options: FileRouterOptions): Writable => 
       // stream. `Promise.all` is awaited inline so the pino flush path
       // sees a clean shutdown.
       retention?.stop();
+      liveFlushers.delete(flush);
       if (pending.length > 0) {
         writeRecord(pending);
         pending = '';

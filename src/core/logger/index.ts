@@ -1,5 +1,5 @@
 export { createLogger, type Logger, type LogLevel } from './logger';
-export { createFileSink } from './file-router-transport';
+export { createFileSink, flushFileSinks } from './file-router-transport';
 export {
   installProcessHandlers,
   getUnhandledRejectionCount,

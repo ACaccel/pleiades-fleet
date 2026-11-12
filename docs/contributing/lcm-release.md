@@ -84,6 +84,8 @@ the defaults (`./data`, `logs`) are inside the release. In production a non-empt
 `LOG_DIR` sends the logs to files only; a blank `LOG_DIR` sends them to stdout (the
 journal) and msg-archive transcripts go to `<PLEIADES_DATA_DIR>/logs`. See
 [deployment paths](../configuration.md#deployment-paths).
+A fatal startup error (a rejected Discord token, the MongoDB wait timing out) is also
+written to stderr as one JSON line, so the journal carries the cause whatever `LOG_DIR` is.
 
 ## LCM document fields
 

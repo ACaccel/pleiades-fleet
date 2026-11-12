@@ -22,6 +22,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createFileRouterStream,
   createFixedPathFileStream,
+  flushFileSinks,
 } from '../../../../src/core/logger/file-router-transport';
 
 let rootDir: string;
@@ -301,5 +302,39 @@ describe('fixed-path file stream', () => {
     } finally {
       stderr.restore();
     }
+  });
+});
+
+describe('flushFileSinks', () => {
+  it('resolves at once when no sink is open', async () => {
+    await expect(flushFileSinks(1_000)).resolves.toBeUndefined();
+  });
+
+  it('puts a record on disk without closing the sink', async () => {
+    const stream = createFileRouterStream({ rootDir });
+    try {
+      stream.write(`${JSON.stringify({ bot: 'bot-F', msg: 'before exit' })}\n`);
+      // The append stream opens its file asynchronously, so nothing is
+      // readable yet; this is what a `process.exit` right after the write
+      // would discard.
+      const file = join(rootDir, 'bot-F', `${dateKey(new Date())}.log`);
+      expect(existsSync(file) ? readFileSync(file, 'utf8') : '').toBe('');
+
+      await flushFileSinks(5_000);
+
+      expect(readFileSync(file, 'utf8')).toContain('before exit');
+      expect(stream.writable).toBe(true);
+    } finally {
+      await new Promise<void>((resolve) => {
+        stream.end(() => {
+          resolve();
+        });
+      });
+    }
+  });
+
+  it('stops tracking a sink once it is closed', async () => {
+    await drain([JSON.stringify({ bot: 'bot-G', msg: 'closed' })]);
+    await expect(flushFileSinks(1_000)).resolves.toBeUndefined();
   });
 });
