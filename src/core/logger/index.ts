@@ -8,3 +8,4 @@ export {
 } from './process-handlers';
 export { ops } from './messages';
 export { logError, logSystem, logGuildEvent } from './helpers';
+export { writeFatalToStderr } from './fatal-report';

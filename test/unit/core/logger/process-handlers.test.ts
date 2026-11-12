@@ -4,15 +4,20 @@
  * We verify the install-once contract, the counter side-effects, and the
  * signal-driven graceful shutdown. The termination primitive is injected
  * (`exit`) so the shutdown paths run to completion without tearing down
- * the test runner. The *fatal* `uncaughtException` path is left to the
- * classifier's own unit tests; the two paths that do NOT exit —
- * `unhandledRejection` and a *transient-network* `uncaughtException` —
- * are exercised directly because the handler returns without shutting
- * down.
+ * the test runner. The fatal `uncaughtException` handler is invoked
+ * directly (emitting the event would also reach the runner's own
+ * listener); the paths that do NOT exit — `unhandledRejection` and a
+ * *transient-network* `uncaughtException` — return without shutting down.
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   __resetProcessHandlersForTests,
+  createFileSink,
+  createLogger,
   getTransientNetworkErrorCount,
   getUnhandledRejectionCount,
   installProcessHandlers,
@@ -155,6 +160,7 @@ describe('installProcessHandlers', () => {
   });
 
   it('escalates the exit status when a fatal fault lands during a clean shutdown', async () => {
+    const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
     const logger = silentLogger();
     const exitCodes: number[] = [];
     let releaseShutdown: () => void = () => {};
@@ -176,6 +182,8 @@ describe('installProcessHandlers', () => {
     await flush();
 
     expect(exitCodes).toEqual([1]);
+    expect(stderr).toHaveBeenCalledWith(expect.stringContaining('genuine defect'));
+    stderr.mockRestore();
   });
 
   it('emitting unhandledRejection bumps the counter without exiting', async () => {
@@ -206,5 +214,107 @@ describe('installProcessHandlers', () => {
     await new Promise<void>((r) => setImmediate(r));
     expect(getTransientNetworkErrorCount()).toBe(before + 1);
     expect(shutdownCalls).toBe(0);
+  });
+
+  describe('fatal exit with a file-only logger', () => {
+    let logDir: string;
+    let stderrChunks: string[];
+
+    beforeEach(() => {
+      logDir = mkdtempSync(join(tmpdir(), 'process-handlers-'));
+      stderrChunks = [];
+      vi.spyOn(process.stderr, 'write').mockImplementation(((chunk: string | Uint8Array) => {
+        stderrChunks.push(String(chunk));
+        return true;
+      }) as typeof process.stderr.write);
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      vi.useRealTimers();
+      rmSync(logDir, { recursive: true, force: true });
+    });
+
+    /** What production builds when `LOG_DIR` is set: JSON to files, nothing on stdout. */
+    const fileOnlyLogger = () =>
+      createLogger({
+        level: 'info',
+        pretty: false,
+        base: { bot: 'bot-X' },
+        extraStreams: [createFileSink({ rootDir: logDir, level: 'info' })],
+      });
+
+    const readLog = (): string => {
+      const [file] = readdirSync(join(logDir, 'bot-X'));
+      return file === undefined ? '' : readFileSync(join(logDir, 'bot-X', file), 'utf8');
+    };
+
+    const installAndGetUncaughtHandler = (
+      input: Parameters<typeof installProcessHandlers>[0],
+    ): ((err: Error) => void) => {
+      const before = new Set(listenersOf('uncaughtException'));
+      installProcessHandlers(input);
+      const ours = listenersOf('uncaughtException').filter((l) => !before.has(l));
+      return ours[0] as unknown as (err: Error) => void;
+    };
+
+    const listenersOf = (event: string): ((...args: never[]) => void)[] =>
+      (process.listeners as unknown as (e: string) => ((...args: never[]) => void)[])(event);
+
+    it('writes the fatal uncaughtException to stderr and the log file before exiting', async () => {
+      let logged = '';
+      const exited = new Promise<number>((resolve) => {
+        const handler = installAndGetUncaughtHandler({
+          logger: fileOnlyLogger(),
+          gracefulShutdown: noopShutdown,
+          exit: (code) => {
+            logged = readLog();
+            resolve(code);
+          },
+        });
+        handler(new Error('boom https://u:hunter2@db.example/x'));
+      });
+
+      await expect(exited).resolves.toBe(1);
+
+      const lines = stderrChunks.join('').trimEnd().split('\n');
+      expect(lines).toHaveLength(1);
+      expect(JSON.parse(lines[0]!)).toMatchObject({
+        levelLabel: 'fatal',
+        event: 'uncaught_exception',
+        message: expect.stringContaining('boom'),
+        stack: expect.stringContaining('boom'),
+      });
+      expect(stderrChunks.join('')).not.toContain('hunter2');
+      expect(logged).toContain('uncaughtException; initiating graceful shutdown');
+      expect(logged).not.toContain('hunter2');
+    });
+
+    it('writes the hard-timeout fatal to stderr and the log file before forcing exit', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      let logged = '';
+      const exited = new Promise<number>((resolve) => {
+        const handler = installAndGetUncaughtHandler({
+          logger: fileOnlyLogger(),
+          gracefulShutdown: () => new Promise<void>(() => undefined),
+          exit: (code) => {
+            logged = readLog();
+            resolve(code);
+          },
+        });
+        handler(new Error('hang'));
+      });
+
+      await vi.advanceTimersByTimeAsync(5_000);
+      await expect(exited).resolves.toBe(1);
+
+      const events = stderrChunks
+        .join('')
+        .trimEnd()
+        .split('\n')
+        .map((l) => (JSON.parse(l) as { event: string }).event);
+      expect(events).toEqual(['uncaught_exception', 'graceful_shutdown_timeout']);
+      expect(logged).toContain('graceful shutdown hit hard timeout; forcing exit');
+    });
   });
 });

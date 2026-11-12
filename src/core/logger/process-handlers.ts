@@ -19,12 +19,19 @@
  * indeterminate state, so it is fatal: best-effort graceful shutdown with a
  * 5-second hard timeout, then exit 1.
  *
+ * Every exit after a fatal event first writes a scrubbed NDJSON line to stderr
+ * ({@link writeFatalToStderr}) and waits, bounded, for the file log to flush:
+ * with `LOG_DIR` set the file sink is the only logger output and `process.exit`
+ * discards its queued writes.
+ *
  * `unhandledRejection` is logged and counted ({@link getUnhandledRejectionCount})
  * but never exits: many libraries reject fire-and-forget promises benignly
  * during teardown.
  */
 import { isTransientNetworkError } from '../errors';
 
+import { writeFatalToStderr } from './fatal-report';
+import { flushFileSinks } from './file-router-transport';
 import type { Logger } from './logger';
 
 let installed = false;
@@ -63,6 +70,13 @@ interface InstallProcessHandlersInput {
 
 const SHUTDOWN_HARD_TIMEOUT_MS = 5_000;
 
+/**
+ * Bound on draining the file log before a fatal exit. `process.exit`
+ * discards writes still queued in the async file sink, so the exit waits
+ * this long for the last records (the fatal one included) to land.
+ */
+const EXIT_LOG_FLUSH_TIMEOUT_MS = 1_000;
+
 /** Signals that mean "stop this process"; both take the graceful path. */
 const TERMINATION_SIGNALS = ['SIGINT', 'SIGTERM'] as const;
 
@@ -98,11 +112,17 @@ export const installProcessHandlers = (input: InstallProcessHandlersInput): void
     if (shuttingDown) return;
     shuttingDown = true;
     const timer = setTimeout(() => {
+      writeFatalToStderr('graceful_shutdown_timeout', undefined, {
+        timeoutMs: SHUTDOWN_HARD_TIMEOUT_MS,
+        trigger: event,
+      });
       input.logger.fatal(
         { timeoutMs: SHUTDOWN_HARD_TIMEOUT_MS, event },
         'graceful shutdown hit hard timeout; forcing exit',
       );
-      exit(1);
+      void flushFileSinks(EXIT_LOG_FLUSH_TIMEOUT_MS).finally(() => {
+        exit(1);
+      });
     }, SHUTDOWN_HARD_TIMEOUT_MS);
     // Defensive: do not let the timer keep the process alive longer than necessary.
     timer.unref?.();
@@ -122,7 +142,10 @@ export const installProcessHandlers = (input: InstallProcessHandlersInput): void
         // stop however it was triggered.
         escalateExitCode(1);
       })
+      .then(() => flushFileSinks(EXIT_LOG_FLUSH_TIMEOUT_MS))
       .finally(() => {
+        // The timer stays armed while the flush runs, so the hard timeout
+        // still bounds the whole exit sequence.
         clearTimeout(timer);
         exit(pendingExitCode);
       });
@@ -155,6 +178,7 @@ export const installProcessHandlers = (input: InstallProcessHandlersInput): void
       );
       return;
     }
+    writeFatalToStderr('uncaught_exception', err);
     input.logger.fatal({ err }, 'uncaughtException; initiating graceful shutdown');
     // Re-entrancy guard: a secondary uncaughtException while shutdown
     // is already running should NOT arm a second timer or kick off a
