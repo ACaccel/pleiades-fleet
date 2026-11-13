@@ -180,10 +180,14 @@ export const scheduleGiveaway = async (
         })
       : t('replies:giveaway.result_no_participants', { prize: giveaway.prize });
   // The prize is member-written; only the winners and the owner may be pinged.
+  // An owner who entered can also win, and Discord rejects a repeated user ID.
   await giveawayChannel.send({
     content: resultContent,
     allowedMentions: {
-      users: winners.length > 0 ? [...winners.map((w) => w.id), giveaway.prize_owner_id] : [],
+      users:
+        winners.length > 0
+          ? [...new Set([...winners.map((w) => w.id), giveaway.prize_owner_id])]
+          : [],
     },
   });
 

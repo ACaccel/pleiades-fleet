@@ -93,6 +93,16 @@ describe('scheduleGiveaway entrants', () => {
     expect(sent.allowedMentions.users).toHaveLength(3);
     expect(sent.allowedMentions.users).toContain('owner');
   });
+
+  it('pings an owner who also won only once', async () => {
+    const { deps, channel, repos } = build(['owner'], ['owner']);
+
+    await scheduleGiveaway(deps, GUILD_ID, MESSAGE_ID);
+
+    const sent = channel.send.mock.calls[0]?.[0] as { allowedMentions: { users: string[] } };
+    expect(sent.allowedMentions.users).toEqual(['owner']);
+    expect(repos.giveaway.deleteByMessageId).toHaveBeenCalledWith(MESSAGE_ID);
+  });
 });
 
 describe('deleteGiveaway', () => {
