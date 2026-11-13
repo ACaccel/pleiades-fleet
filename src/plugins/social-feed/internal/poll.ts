@@ -514,11 +514,20 @@ export const runFeedPass = async (deps: FeedPassDeps, fullSweep: boolean): Promi
       );
       if (!fetched.ok) {
         // One read serves every guild subscribing to this account, so
-        // the failure belongs to no single guild; the affected ids are
-        // bound instead, or an operator could not tell whose feed just
-        // went quiet.
+        // the failure belongs to no single guild; the affected ids and the
+        // account are bound instead, or an operator could not tell whose
+        // feed just went quiet or which subscription to correct.
         const guildIds = [...new Set(group.members.map((member) => member.guildId))];
-        logError(deps.logger.child({ plugin: PLUGIN, guildIds }), null, fetched.error);
+        logError(
+          deps.logger.child({
+            plugin: PLUGIN,
+            guildIds,
+            platform: group.platform.id,
+            account: group.account,
+          }),
+          null,
+          fetched.error,
+        );
         continue;
       }
 

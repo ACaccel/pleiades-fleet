@@ -1111,10 +1111,10 @@ describe('runFeedPass — failure isolation', () => {
     expect(errorLog).toHaveBeenCalledTimes(1);
   });
 
-  it('names the affected guilds when a shared upstream read fails', async () => {
+  it('names the affected guilds and account when a shared upstream read fails', async () => {
     // The read serves several guilds at once, so the error carries no
     // single guild id; without this binding an operator could not tell
-    // whose feed went quiet.
+    // whose feed went quiet or which subscription to correct.
     const a = makeRepos([subscription({ last_seen_id: '5', last_seen_timestamp: 50 })]);
     const b = makeRepos([subscription({ last_seen_id: '5', last_seen_timestamp: 50 })]);
     const { deps, logBindings } = harness({
@@ -1127,7 +1127,12 @@ describe('runFeedPass — failure isolation', () => {
 
     await runFeedPass(deps, false);
 
-    expect(logBindings).toContainEqual({ plugin: 'social-feed', guildIds: ['g-a', 'g-b'] });
+    expect(logBindings).toContainEqual({
+      plugin: 'social-feed',
+      guildIds: ['g-a', 'g-b'],
+      platform: 'fake',
+      account: ACCOUNT,
+    });
   });
 
   it('survives a cursor write failure after a successful send', async () => {
