@@ -50,7 +50,8 @@ type CandidateQuality = 'video' | 'image' | 'weak-image' | 'text' | 'none';
  * as a usable image card. An Instagram proxy that cannot resolve a post
  * answers with its product name as the title and "Post not found" as the
  * description, or "Failed to get new postID from share URL" for an
- * unresolvable share link. A Bilibili proxy reports a removed or blocked
+ * unresolvable share link. vxTwitter answers a post it cannot fetch with
+ * `og:title="vxTwitter / fixvx"` and "Failed to scan your link!". A Bilibili proxy reports a removed or blocked
  * video as "Error - Video Not Found". EmbedEZ proxies (redditez,
  * bilibiliez, ...) that cannot render a post fall back to their own
  * marketing blurb as the description. Scoring any of these as a usable
@@ -75,6 +76,7 @@ const JUNK_MARKERS: readonly string[] = [
   'video not found',
   'failed to get data from reddit',
   'failed to get new postid from share url',
+  'failed to scan your link',
   'learn about the purpose of embedez',
 ];
 
@@ -92,7 +94,12 @@ const HTTP_ERROR_TITLE = /^\s*[45]\d\d\s*[:\-–]/;
  * serves as `og:title` on a fetch error (e.g. vxReddit returns
  * `og:title="vxReddit"` when Reddit's API call fails).
  */
-const JUNK_EXACT_TITLES: ReadonlySet<string> = new Set(['vxreddit', 'rxddit', 'fxreddit']);
+const JUNK_EXACT_TITLES: ReadonlySet<string> = new Set([
+  'vxreddit',
+  'rxddit',
+  'fxreddit',
+  'vxtwitter / fixvx',
+]);
 
 const matchesJunkMarker = (text: string): boolean => {
   const normalized = text.toLowerCase();

@@ -441,6 +441,28 @@ describe('scoreMeta login-wall / junk rejection', () => {
     ).toBe('none');
   });
 
+  it('rejects a vxTwitter proxy-error page', () => {
+    expect(isJunkPreviewTitle('vxTwitter / fixvx')).toBe(true);
+    const description =
+      "Failed to scan your link! This may be due to an incorrect link, private/suspended account, deleted tweet, or recent changes to Twitter's API.";
+    expect(scoreMeta(meta({ title: 'vxTwitter / fixvx', description }))).toBe('none');
+    expect(scoreMeta(meta({ title: 'tweet', description }))).toBe('none');
+  });
+
+  it('skips a vxTwitter error page for the next proxy with a text card', async () => {
+    const vx = 'https://vxtwitter.com/jack/status/20';
+    const fx = 'https://fxtwitter.com/jack/status/20';
+    const { client } = makeOgClient({
+      [vx]: ok(meta({ title: 'vxTwitter / fixvx', description: 'Failed to scan your link! ...' })),
+      [fx]: ok(meta({ title: 'Jack (@jack)' })),
+    });
+    const provider = createTwitterProvider({
+      proxyHosts: ['vxtwitter.com', 'fxtwitter.com'],
+      ogClient: client,
+    });
+    expect(await buildUrl(provider, 'https://x.com/jack/status/20')).toBe(fx);
+  });
+
   it('flags the Threads login-wall titles', () => {
     expect(isJunkPreviewTitle('Threads • 登入')).toBe(true);
     expect(isJunkPreviewTitle('Threads • Log in')).toBe(true);
