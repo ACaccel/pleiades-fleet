@@ -11,49 +11,6 @@ or [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## [Unreleased]
 
-## [1.3.0] - 2026-11-14
-
-### Added
-
-- Follow Bahamut board topics and thread floors through feed subscriptions ([2628f4f](https://github.com/ACaccel/pleiades-fleet/commit/2628f4f)).
-- Accept `AND`, `OR`, `NOT`, parentheses and quotes in feed keyword filters ([3b37941](https://github.com/ACaccel/pleiades-fleet/commit/3b37941)).
-- Add YouTube channel feeds and a private filter editor that edits existing subscriptions without replaying posts (**breaking** — see [`README.md`](README.md)) ([e2a73f1](https://github.com/ACaccel/pleiades-fleet/commit/e2a73f1)).
-- Preview Pixiv artwork links through configurable embed proxies ([8dc947e](https://github.com/ACaccel/pleiades-fleet/commit/8dc947e)).
-- Let `/talk` attach up to five files of up to 20 MiB each ([c789f83](https://github.com/ACaccel/pleiades-fleet/commit/c789f83)).
-- Show the original event time on relayed updates and mark updates delivered late ([f26284e](https://github.com/ACaccel/pleiades-fleet/commit/f26284e)).
-- Read the bot's `config.json`, data and log locations from `PLEIADES_CONFIG_FILE`, `PLEIADES_DATA_DIR` and `LOG_DIR` ([4e844fc](https://github.com/ACaccel/pleiades-fleet/commit/4e844fc)).
-- Add a read-only release build and a launcher that starts one bot from it ([658b8a5](https://github.com/ACaccel/pleiades-fleet/commit/658b8a5)).
-- Wait for MongoDB before logging in to Discord, up to `MONGO_READY_TIMEOUT_SECONDS` ([5534752](https://github.com/ACaccel/pleiades-fleet/commit/5534752)).
-
-### Changed
-
-- Replace the feed commands' `account` option with `target`, and forward text-only X posts by default (**breaking** — see [`README.md`](README.md)) ([46901e5](https://github.com/ACaccel/pleiades-fleet/commit/46901e5)).
-- Run on the pinned Node.js 24.22.1 (**breaking** — see [`README.md`](README.md)) ([4ed4082](https://github.com/ACaccel/pleiades-fleet/commit/4ed4082)).
-- Install the pinned official Node.js runtime independently of Conda, which now provides only fonts (**breaking** — see [`README.md`](README.md)) ([16aa183](https://github.com/ACaccel/pleiades-fleet/commit/16aa183)).
-- Turn gallery pages faster, especially pages far ahead of the current one ([3804e4c](https://github.com/ACaccel/pleiades-fleet/commit/3804e4c)).
-- Show a preview of the rated text instead of a bare message link in message ratings ([2f7392d](https://github.com/ACaccel/pleiades-fleet/commit/2f7392d)).
-- Score a pairing in the order given, so A × B and B × A get separate readings ([8c2a6fe](https://github.com/ACaccel/pleiades-fleet/commit/8c2a6fe)).
-
-### Fixed
-
-- Skip vxTwitter's error page, so sensitive X posts no longer preview as a broken embed ([900566f](https://github.com/ACaccel/pleiades-fleet/commit/900566f)).
-- Link emoji and stickers at their original size instead of a 128 px thumbnail ([b028d51](https://github.com/ACaccel/pleiades-fleet/commit/b028d51)).
-- Post a giveaway's result when its owner also won ([e530fba](https://github.com/ACaccel/pleiades-fleet/commit/e530fba)).
-- Name the account when a feed read fails ([ec61424](https://github.com/ACaccel/pleiades-fleet/commit/ec61424)).
-- Keep the error that stopped a bot at startup in its logs ([7c40bf7](https://github.com/ACaccel/pleiades-fleet/commit/7c40bf7)).
-- Keep the fatal log line on an uncaught exception or a forced shutdown ([f661524](https://github.com/ACaccel/pleiades-fleet/commit/f661524)).
-- Write msg-archive transcripts under the data directory when `LOG_DIR` is blank ([7fd89b0](https://github.com/ACaccel/pleiades-fleet/commit/7fd89b0)).
-- Fix `/traffic` comparison windows and public-channel audience detection ([9d73980](https://github.com/ACaccel/pleiades-fleet/commit/9d73980)).
-
-### Removed
-
-- Remove the built-in systemd deployment, auto-deployment and backup tools in favour of the LCM release (**breaking** — see [`README.md`](README.md)) ([19b1cbd](https://github.com/ACaccel/pleiades-fleet/commit/19b1cbd)).
-
-### Security
-
-- Patch high-severity advisories in `undici`, `body-parser`, `follow-redirects` and `zod` ([12716fd](https://github.com/ACaccel/pleiades-fleet/commit/12716fd)).
-- Update `mongoose` to 8.24.7 to patch high-severity advisories ([32af6e8](https://github.com/ACaccel/pleiades-fleet/commit/32af6e8)).
-
 ## [1.2.0] - 2026-10-16
 
 ### Added
@@ -356,7 +313,6 @@ that rebuild:
 
 - Allowlist GHSA-r5fr-rjxr-66jc, which has no in-range remediation ([30e670c](https://github.com/ACaccel/pleiades-fleet/commit/30e670c)).
 
-[1.3.0]: https://github.com/ACaccel/pleiades-fleet/releases/tag/v1.3.0
 [1.2.0]: https://github.com/ACaccel/pleiades-fleet/releases/tag/v1.2.0
 [1.1.0]: https://github.com/ACaccel/pleiades-fleet/releases/tag/v1.1.0
 [1.0.0]: https://github.com/ACaccel/pleiades-fleet/releases/tag/v1.0.0
