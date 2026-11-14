@@ -28,7 +28,7 @@
     "@core/*": ["src/core/*"],
     "@plugins": ["src/plugins/index.ts"]
   },
-  "ignoreBinaries": ["systemd-analyze", "mkfifo"],
+  "ignoreBinaries": ["mkfifo"],
   "ignoreDependencies": ["tsconfig-paths", "audit-ci", "prettier"],
   "ignore": [
     "src/persistence/index.ts",

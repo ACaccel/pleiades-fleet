@@ -45,7 +45,7 @@ export const archiveRuntimeSchema = z
 
 export type ArchiveRuntimeConfig = z.infer<typeof archiveRuntimeSchema>;
 
-/** Composition and deploy preparation validate exactly the same archive settings. */
+/** Every consumer of the archive settings validates them through this one parser. */
 export function parseArchiveSettings(input: {
   backupServers: readonly string[];
   backupIntervalMs?: number;

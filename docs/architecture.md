@@ -54,7 +54,7 @@ a second signal exits immediately. Discord handles reconnection. Uncaught except
 use a narrow transient-network whitelist, separate from ordinary retry policy.
 
 `PLEIADES_READY_FILE` attests startup readiness of Discord, repositories and plugins;
-disabled plugins prevent publication. See [deployment](contributing/deployment.md)
+disabled plugins prevent publication. See [LCM release](contributing/lcm-release.md)
 for this startup marker, which does not indicate continuous health.
 
 ## Plugins and dependency injection
@@ -447,28 +447,14 @@ manages font assets separately in `.conda-fonts/`; `PLEIADES_FONT_DIR` lets rele
 select fonts independently of the Node executable. See
 [local setup](contributing/local-setup.md#prerequisites) for installation and paths.
 
-A second, host-independent form of release is built by `npm run build:release` and
-started through `bin/start.cjs`: one read-only tree shared by several bot instances,
-with configuration, data and logs supplied through the environment. See
-[LCM release](contributing/lcm-release.md).
-
-Independent systemd units run immutable release snapshots with their own Node and
-fonts, external configuration and persistent logs/data. Deployment and runtime
-accounts have separate duties; running bots do not need repository credentials or
-permission to update installed code. A transaction journal supports rollback;
-MongoDB retains a separate lifecycle and a timer takes daily online database dumps.
-
-The [local auto-deployment controller](contributing/local-auto-deployment.md)
-tracks `dev`, gates the exact commit on CI, and prepares a separate clean checkout.
-It selects affected enabled bots, preserves installation recovery state, and sends
-one editable Konata notification per commit listing the deployment targets.
-Notification delivery is retried independently of deployment, including while
-Konata itself restarts. Database cutover remains explicit.
-
-See [manual deployment](contributing/deployment.md), the
-[backup guide](../tools/mongo-backup/README.md) and the
-[migration runbook](../tools/migration/README.md). Historical migration backups keep
-their own recorded runtime versions; application updates do not rewrite them.
+LCM builds the bots with `npm run build:release` and starts them through
+`bin/start.cjs`: one read-only tree shared by several bot instances, with
+configuration, data and logs supplied through the environment. Running bots need no
+repository credentials or permission to update installed code, and LCM owns release
+history, rollback and MongoDB backups. See [LCM release](contributing/lcm-release.md)
+and the [migration runbook](../tools/migration/README.md). Historical migration
+backups keep their own recorded runtime versions; application updates do not rewrite
+them.
 
 ## Message archive ownership
 

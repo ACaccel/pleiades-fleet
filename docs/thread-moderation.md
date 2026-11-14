@@ -141,7 +141,7 @@ to false suspends enforcement without deleting saved restrictions.
 
 Register Nijika's commands and deploy its updated code following
 [local setup](contributing/local-setup.md#registering-slash-commands) and
-[deployment](contributing/deployment.md). The bot needs access to the thread and
+[LCM release](contributing/lcm-release.md). The bot needs access to the thread and
 the **View Channel** and **Manage Messages** permissions. A ban command checks
 these permissions before saving; allow remains available if deletion permission
 has been lost.

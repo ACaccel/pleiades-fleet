@@ -7,8 +7,7 @@ import { z } from 'zod';
 
 import { INTENSITIES, type Intensity } from './alert-request';
 
-/** Exported for the deployment preflight, which checks the block before cutover. */
-export const EarthquakeAlertConfigSchema = z
+const EarthquakeAlertConfigSchema = z
   .object({
     /** Lowest local intensity that pings the guild's `earthquake` role and turns the embed red. */
     ping_min_local_intensity: z.enum(INTENSITIES).default('4'),

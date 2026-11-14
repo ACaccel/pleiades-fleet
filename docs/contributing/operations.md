@@ -1,6 +1,6 @@
 # Operations
 
-For service commands and rollback, see [deployment](deployment.md).
+For building, running and rolling back the bots, see [LCM release](lcm-release.md).
 
 For X, Bahamut and YouTube targets and filters, see
 [feed configuration](../configuration.md#feed-subscriptions).
@@ -57,9 +57,7 @@ Follow the [migration runbook](../../tools/migration/README.md) for host transfe
 
 ## Database backups
 
-`pleiades-mongo-backup.timer` dumps every application database daily into
-`/var/backups/pleiades` and keeps 3 snapshots. Install, check and restore steps are in
-the [backup guide](../../tools/mongo-backup/README.md).
+LCM backs up MongoDB; see [LCM release](lcm-release.md#operation).
 
 ## Recording removal rollout
 
@@ -92,14 +90,14 @@ To enable konata's [notification relay API](../configuration.md#notification-rel
    never through Git.
 3. Add the route to `notificationRoutes` in `src/bot/konata/config.json` and make
    sure konata can view, post and embed links in that channel.
-4. Deploy konata with `npm run deploy -t konata` (see [deployment](deployment.md#commands)).
-   Preparation rejects a port without a key of at least 32 characters and a
-   malformed route block.
+4. Restart the konata instance ([LCM release](lcm-release.md#operation)). Startup
+   rejects a port without a key of at least 32 characters and a malformed route
+   block.
 5. Check the startup line `notification relay API is listening on 127.0.0.1:<port>`
-   in `journalctl -u pleiades@konata.service`.
+   in the instance journal.
 
 The API listens on `127.0.0.1` only. To rotate the key, change both sides and
-redeploy konata; to disable it, remove `NOTIFY_API_PORT` and redeploy.
+restart konata; to disable it, remove `NOTIFY_API_PORT` and restart.
 
 ## Earthquake alerts
 
@@ -123,10 +121,10 @@ To enable Nijika or Tomori's [early-warning API](../configuration.md#early-warni
    sudo tailscale serve --bg --set-path /earthquake/ http://127.0.0.1:4000
    ```
 
-5. Deploy nijika with `npm run deploy -t nijika` (see [deployment](deployment.md#commands)).
-   Preparation rejects a port without a key of at least 32 characters and a malformed
-   `earthquake_alert` block. Check the startup line `earthquake alert API is listening on 127.0.0.1:4000` in
-   `journalctl -u pleiades@nijika.service`.
+5. Restart the nijika instance ([LCM release](lcm-release.md#operation)). Startup
+   rejects a port without a key of at least 32 characters and a malformed
+   `earthquake_alert` block. Check the startup line
+   `earthquake alert API is listening on 127.0.0.1:4000` in the instance journal.
 6. On Windows, install the scripts, the `earthquake-alert.config.json` holding
    `https://<server>.<tailnet>.ts.net/earthquake/alerts` and the key file, and point the app at
    `earthquake-alert.cmd` as described in
@@ -135,14 +133,14 @@ To enable Nijika or Tomori's [early-warning API](../configuration.md#early-warni
    Windows, confirm the whole path without posting to Discord.
 
 For Tomori, use its own `.env`, unused local port, proxy path and caller key/URL
-instead of the Nijika values above, then deploy with `npm run deploy -t tomori`.
+instead of the Nijika values above, then restart the tomori instance.
 Set `CWA_API_KEY` for reports. In Tomori's `/settings` > **Earthquake notifications**,
 select a destination and enable each required feed; the warning role may be empty.
 Both feeds start off on every server, and CWA reports never mention anyone.
 Use separate caller/proxy routes when both bots receive warnings.
 
-To rotate the key, change `.env` and the Windows key file, then redeploy the selected bot; to
-disable the API, remove `EARTHQUAKE_ALERT_PORT`, redeploy, remove the serve path with
+To rotate the key, change `.env` and the Windows key file, then restart the selected bot; to
+disable the API, remove `EARTHQUAKE_ALERT_PORT`, restart, remove the serve path with
 `sudo tailscale serve --set-path /earthquake/ off` and confirm with
 `tailscale serve status`.
 
@@ -178,7 +176,7 @@ Transient failures retry in the background using
 repositories and jobs. Match giveaway error IDs to connection logs. Restore MongoDB
 or its network route for refused connections; fix authentication/authorization or
 other persistent failures, then restart the bot. To recover lost or corrupted data,
-restore a [daily backup](../../tools/mongo-backup/README.md#restore).
+restore an LCM backup ([LCM release](lcm-release.md#operation)).
 
 ## Message archive maintenance
 

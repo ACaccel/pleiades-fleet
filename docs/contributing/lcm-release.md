@@ -3,10 +3,10 @@
 Part of the [contributing guide](../../CONTRIBUTING.md).
 
 LCM (the self-hosted control plane) builds and runs the bots as one read-only
-release shared by one systemd unit per bot. This page covers the repository side:
-the build, the launcher and the settings an instance needs. The systemd flow in
-[deployment](deployment.md) and [local auto-deployment](local-auto-deployment.md)
-stays in use until the cutover; nothing here changes it.
+release shared by one `<service>@<instance>` systemd unit per bot. This page is the
+single source for deployment: the build, the launcher, the settings an instance
+needs and day-to-day operation. The repository contains no other deployment
+tooling.
 
 ## Build
 
@@ -75,9 +75,9 @@ wait settings (`LOG_LEVEL`, `LOG_RETENTION_DAYS`, `MONGO_READY_TIMEOUT_SECONDS`,
 
 Every database-backed bot waits for MongoDB to answer (`MONGO_READY_TIMEOUT_SECONDS`,
 default 120 s) before it logs in to Discord and exits 1 on a timeout, so a unit needs
-no `ExecStartPre` probe and `Restart=on-failure` covers a database that stays down. The
-[systemd flow](deployment.md) keeps its probe; the in-app wait then returns at once.
-`PLEIADES_READY_FILE` is optional: unset, no marker is written.
+no `ExecStartPre` probe and `Restart=on-failure` covers a database that stays down.
+`PLEIADES_READY_FILE` is optional: unset, no marker is written; it attests startup
+only, not continuous health.
 
 The working directory is read-only, so `PLEIADES_DATA_DIR` and `LOG_DIR` must be set;
 the defaults (`./data`, `logs`) are inside the release. In production a non-empty
@@ -112,18 +112,25 @@ fonts=<directory with the two font files>`). The multi-instance interface of LCM
 (one unit, environment file and port per bot) is still being designed; the fields
 above are the single-service form.
 
-## At cutover
+## Operation
 
-- `.nvmrc` moves from Node 22.23.4 to 24.22.1. The current controller builds
-  releases with the Node pinned in `.nvmrc`, so a `dev` commit containing the new
-  pin deploys only after the controller host has the Node 24 runtime prepared;
-  see [CUTOVER](../../tools/local-deployment/CUTOVER.md).
-- Per-bot `.env` and `config.json` leave `/etc/pleiades-fleet/bots/<bot>/` for the
-  instance environment and `PLEIADES_CONFIG_FILE`.
-- Data (`/var/lib/pleiades-fleet`) and logs (`/var/log/pleiades-fleet`) move to the
-  service's state directory or are pointed at through `PLEIADES_DATA_DIR` and `LOG_DIR`.
-- Not handled by the launcher: msg-archive measures MongoDB's data directory for its
-  storage budget and so needs read access to it (today through the `pleiades-mongo`
-  group). The budget also counts the release and the Node runtime, but not a state
-  directory outside the release: list it in `archive_runtime.storage.additional_roots`
-  of msg-archive's `config.json`.
+- **Updates.** LCM rebuilds from the configured branch and keeps previous releases
+  for rollback. A rollback restores code and dependencies, not configuration,
+  database writes or external actions. Slash commands are registered separately
+  with `npm run register -t <bot>` ([local setup](local-setup.md#registering-slash-commands)).
+- **Restart and logs.** Restart an instance through LCM or `systemctl restart
+<service>@<instance>`; read its journal with `journalctl -u <service>@<instance>`.
+  Configuration changes (for example the
+  [gopher endpoint](../configuration.md#gopher-llm-endpoint)) need an instance restart.
+- **Database.** LCM takes the MongoDB backups; restore from them
+  ([database recovery](operations.md#database-recovery)). The repository holds no
+  backup tooling. For a host transfer, follow the
+  [migration runbook](../../tools/migration/README.md).
+- **msg-archive.** A full backup interrupted by a restart continues on its own with
+  its original cutoff and checkpoints; a stopped one needs **Resume** in
+  [archive controls](../message-archive.md#discord-controls). A deployment does not
+  authorize starting a production full backup.
+- **Storage budget.** msg-archive measures MongoDB's data directory for its storage
+  budget and so needs read access to it. The budget also counts the release and the
+  Node runtime, but not a state directory outside the release: list it in
+  `archive_runtime.storage.additional_roots` of msg-archive's `config.json`.

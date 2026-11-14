@@ -32,18 +32,6 @@ function setup(overrides: NodeJS.ProcessEnv = {}) {
 }
 
 describe('runtime setup safety', () => {
-  it.each(['current.json', 'transaction.json', 'lock'])(
-    'refuses to change a managed or pending runtime: %s',
-    (state) => {
-      mkdirSync(join(root, '.deploy'));
-      writeFileSync(join(root, '.deploy', state), '{}');
-      const result = setup();
-      expect(result.status).toBe(1);
-      expect(result.stderr).toContain('undeploy managed bots');
-      expect(existsSync(invoked)).toBe(false);
-    },
-  );
-
   it('preserves a legacy Conda runtime rather than pruning its Node.js', () => {
     const legacy = join(root, '.conda');
     mkdirSync(join(legacy, 'bin'), { recursive: true });

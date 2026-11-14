@@ -831,5 +831,5 @@ Developer throughput measurements use the isolated
 do not establish production throughput or authorize a production scan.
 
 Production execution requires operational review; local tests do not establish
-production capacity, permissions or throughput. See [deployment](contributing/deployment.md#message-archive-worker-upgrades),
+production capacity, permissions or throughput. See the [archive upgrade notes](upgrading.md#message-archive-worker-and-tools),
 [Discord controls](#discord-controls).

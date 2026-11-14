@@ -116,7 +116,7 @@ export default tseslint.config(
       'import/first': 'error',
       // `console.*` is banned outside the test / scripts override
       // below. `console.error` is permitted as a last-resort fallback
-      // for the deploy CLI's top-level catch and any future site where
+      // for a script's top-level catch and any future site where
       // the structured logger itself is unavailable; every such call
       // site must carry a `// last-resort` comment.
       'no-console': ['error', { allow: ['error'] }],

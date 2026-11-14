@@ -4,33 +4,9 @@
 
 `.nvmrc` pins Node.js 24.22.1 (npm stays 10.9.2 for the project runtime). Run
 `bash scripts/setup-env.sh` to install it next to the old runtime under `.runtime/`.
-The automatic `dev` deployment prepares releases with the runtime pinned in
-`.nvmrc`, so prepare a Node 24 controller runtime before it deploys this change
-(see [cutover](../tools/local-deployment/CUTOVER.md)). Bots also gain
+Bots also gain
 `PLEIADES_CONFIG_FILE`, `PLEIADES_DATA_DIR`, `PLEIADES_BOT` and the
 [LCM release](contributing/lcm-release.md); existing settings and paths are unchanged.
-
-## Shared MongoDB data access
-
-Bot units now join the `pleiades-mongo` group so msg-archive measures the MongoDB
-data directory directly; the retired capacity sampler and its
-`ARCHIVE_MONGO_USAGE_FILE` setting are gone (the key is ignored if present).
-Bot and database settings files need no change. On an existing isolated host:
-
-1. Make the existing data group-readable:
-   `sudo chmod -R g+rX,g-w,o-rwx /var/lib/pleiades-mongo/data`.
-2. Reinstall the privileged helper from the reviewed checkout:
-   `sudo install -o root -g root -m 0644 tools/local-deployment/helper.mjs /usr/local/libexec/pleiades-local-deploy.mjs`.
-   Each bot gains the group when its unit is next installed.
-3. Install the re-rendered MongoDB unit (`UMask=0027`) as in
-   [cutover step 6](../tools/local-deployment/CUTOVER.md#offline-data-and-unit-transition) and restart
-   `mongodb-pleiades.service` in a maintenance window so new database files stay
-   group-readable.
-4. If the sampler was installed, run
-   `sudo systemctl disable --now pleiades-mongo-storage.service`, remove
-   `/etc/systemd/system/pleiades-mongo-storage.service` and
-   `/usr/local/libexec/pleiades-mongo-storage.mjs`, then
-   `sudo systemctl daemon-reload`.
 
 ## Official Node.js runtime
 
@@ -38,38 +14,29 @@ Follow [local setup](contributing/local-setup.md) to install the exact `.nvmrc`
 version independently of Conda. Fonts move to a separate `.conda-fonts` prefix;
 keep legacy runtimes while old units reference them. Existing traffic displays
 retain `UTC` for zero offset across the official runtime's Intl data changes.
-For dedicated accounts and `dev` automation, follow the
-[local deployment guide](contributing/local-auto-deployment.md).
 
 ## Project rename to Pleiades
 
-BotFleet is now Pleiades; the repository is `ACaccel/pleiades-fleet`. Every
-deployment identifier changed, and the old names are not recognised:
+BotFleet is now Pleiades; the repository is `ACaccel/pleiades-fleet`. Identifiers
+changed, and the old names are not recognised:
 
-| Old                                                   | New                                                  |
-| ----------------------------------------------------- | ---------------------------------------------------- |
-| `botfleet@<bot>.service`, `mongodb-botfleet.service`  | `pleiades@<bot>.service`, `mongodb-pleiades.service` |
-| `botfleet-mongo-backup.service` / `.timer`            | `pleiades-mongo-backup.service` / `.timer`           |
-| `BOTFLEET_CONDA_PREFIX`, `BOTFLEET_READY_FILE`        | `PLEIADES_CONDA_PREFIX`, `PLEIADES_READY_FILE`       |
-| `/var/backups/botfleet`, `botfleet-backups` (default) | `/var/backups/pleiades`, `pleiades-backups`          |
-| `.git/botfleet-migration`                             | `.git/pleiades-migration`                            |
-| `%LOCALAPPDATA%\BotFleet` (Windows earthquake caller) | `%LOCALAPPDATA%\Pleiades`                            |
+| Old                                                   | New                                            |
+| ----------------------------------------------------- | ---------------------------------------------- |
+| `BOTFLEET_CONDA_PREFIX`, `BOTFLEET_READY_FILE`        | `PLEIADES_CONDA_PREFIX`, `PLEIADES_READY_FILE` |
+| `.git/botfleet-migration`                             | `.git/pleiades-migration`                      |
+| `%LOCALAPPDATA%\BotFleet` (Windows earthquake caller) | `%LOCALAPPDATA%\Pleiades`                      |
 
-The new deploy tool refuses units marked `Managed by BotFleet`, so remove them with
-the previous code before upgrading. Database contents and Discord data are unaffected.
+Database contents and Discord data are unaffected.
 
-1. With the pre-rename checkout, stop and remove the managed units:
-   `npm run backup:uninstall`, `npm run undeploy`, then `npm run mongo:undeploy`.
-2. Update the checkout and, if desired, rename the host paths (checkout, MongoDB
-   runtime directory, backup directories, `.git/botfleet-migration`). Update every
-   moved path in `mongod.conf`, `deployment.json` and `tools/migration/config.json`.
-3. Conda environments embed absolute paths: after moving one, delete it and rebuild
+1. Update the checkout and, if desired, rename the host paths (checkout, MongoDB
+   runtime directory, `.git/botfleet-migration`). Update every moved path in
+   `mongod.conf` and `tools/migration/config.json`.
+2. Conda environments embed absolute paths: after moving one, delete it and rebuild
    with `bash scripts/setup-env.sh` or `bash scripts/setup-mongo.sh <prefix>`.
-4. A moved checkout keeps a stale `core.hooksPath`; run
+3. A moved checkout keeps a stale `core.hooksPath`; run
    `git config --local --unset core.hooksPath` and `sh scripts/install-hooks.sh`.
-5. Replace `BOTFLEET_CONDA_PREFIX` with `PLEIADES_CONDA_PREFIX` in any shell profile.
-6. Run `npm run mongo:deploy`, `npm run deploy` and `npm run backup:install`.
-7. On each Windows alert host, move `%LOCALAPPDATA%\BotFleet` to
+4. Replace `BOTFLEET_CONDA_PREFIX` with `PLEIADES_CONDA_PREFIX` in any shell profile.
+5. On each Windows alert host, move `%LOCALAPPDATA%\BotFleet` to
    `%LOCALAPPDATA%\Pleiades`, replace `earthquake-alert.cmd` and `earthquake-alert.ps1`
    with the current versions, and point the warning app at the moved script. The
    previous script still reads its key from `%LOCALAPPDATA%\BotFleet` and fails with
@@ -80,7 +47,7 @@ the previous code before upgrading. Database contents and Discord data are unaff
 
 Nijika's unauthenticated webhook is retired: `GET /discord/` and
 `POST /discord/earthquake` no longer exist, and nijika no longer reads `PORT` or
-requires it at startup or deployment preparation. Early warnings now arrive on the
+requires it at startup. Early warnings now arrive on the
 bearer-protected, loopback-only [`POST /alerts`](configuration.md#early-warning-api)
 with the alert's values, which nijika renders as an embed.
 
@@ -91,7 +58,7 @@ with the alert's values, which nijika renders as an embed.
    `EARTHQUAKE_ALERT_KEY`. A leftover `PORT` is ignored. Without
    `EARTHQUAKE_ALERT_PORT` the API stays off; CWA reports are unaffected.
 3. Follow the [operator steps](contributing/operations.md#earthquake-alerts) to expose
-   the port through `tailscale serve`, deploy, and test from the warning app.
+   the port through `tailscale serve`, redeploy, and test from the warning app.
 
 Alerts now post to every guild with an `earthquake` channel, also without an
 `earthquake` role, and ping the role only from local intensity 4; set
@@ -317,7 +284,7 @@ days. Nijika can now delete attributable public replies from other bots, while
 unknown origins and private responses remain outside this mechanism. See
 [thread moderation](thread-moderation.md) for scope, recovery and permissions.
 
-For routine updates, see [deployment](contributing/deployment.md); for current
+For routine updates, see [LCM release](contributing/lcm-release.md); for current
 settings, see [Configuration](configuration.md).
 
 ## Social feed
@@ -382,8 +349,7 @@ msg-archive's commands again with `npm run register -t msg-archive`.
 
 `archive_runtime.progress_interval_seconds` is removed; public progress always
 refreshes every ten seconds. `archive_runtime` rejects unknown keys, so delete the
-key from msg-archive's `config.json` before deploying, or startup and
-`npm run deploy:prepare` fail. Progress snapshots saved by earlier releases
+key from msg-archive's `config.json` before deploying, or startup fails. Progress snapshots saved by earlier releases
 (version 1 or unversioned) are no longer read; their job or run shows no progress
 until it saves a new one.
 

@@ -12,8 +12,7 @@ const snowflake = z.string().regex(/^\d{17,20}$/, 'must be a Discord ID');
 
 const RouteSchema = z.object({ guildId: snowflake, channelId: snowflake }).strict();
 
-/** Exported for the deployment preflight, which checks the block before cutover. */
-export const NotificationRoutesSchema = z.record(
+const NotificationRoutesSchema = z.record(
   z.string().regex(ROUTE_NAME_PATTERN, 'route names use lowercase letters, digits and hyphens'),
   RouteSchema,
 );

@@ -28,7 +28,7 @@ Conda installs only the font packages in [`environment.yml`](../../environment.y
 into `.conda-fonts/`. Conda activation is unnecessary. Project npm scripts use
 [`runtime.mjs`](../../scripts/runtime.mjs) to select the pinned Node and npm,
 set child-process paths, and forward termination signals. Exporting the path above
-also selects that npm for interactive commands; it does not change systemd services.
+also selects that npm for interactive commands.
 
 For custom paths, export an absolute `PLEIADES_CONDA_PREFIX` before setup to choose
 a separate fonts-only environment. `PLEIADES_NODE_PREFIX` can select an existing
@@ -55,12 +55,10 @@ cairo 1.16, which predates COLRv1 colour fonts, so keep a CBDT `NotoColorEmoji.t
 build when upgrading the package.
 
 Use `npm run install-lock` to reinstall dependencies or `npm run setup` to update
-the local environment. Setup refuses managed or unfinished deployments and refuses
-to prune a legacy Conda environment containing `bin/node`. Leave the old `.conda/`
-untouched until its releases have been retired; use a fresh fonts-only prefix.
-The [auto-deployment controller](local-auto-deployment.md) builds in a separate
-checkout and retains each release's runtime for rollback. Follow the
-[deployment guide](deployment.md) for a manual runtime cutover.
+the local environment. Setup refuses to prune a legacy Conda environment containing
+`bin/node`; leave the old `.conda/` untouched and use a fresh fonts-only prefix.
+Deployed instances do not use this runtime: LCM builds them as described in
+[LCM release](lcm-release.md).
 
 The migration tools retain their separate, backup-owned runtime contract; this
 application setup does not rewrite runtime versions stored in historical backups.
@@ -82,8 +80,8 @@ gates so tests can create isolated repositories without changing this checkout.
 
 ## Dependency analysis
 
-`npm run knip` uses Knip 6. Its configuration declares `systemd-analyze` and
-`mkfifo` as host-provided test utilities, not npm dependencies. Keep the schema
+`npm run knip` uses Knip 6. Its configuration declares `mkfifo` as a
+host-provided test utility, not an npm dependency. Keep the schema
 major aligned with the installed tool; Knip 6 no longer supports the
 `classMembers` rule. Helper types used only within their defining module stay
 unexported; exported interfaces still expose their structural member types.
@@ -112,7 +110,7 @@ Tomori and Nijika registration automatically includes [`/settings`](../tomori-se
 even when the command list omits the entry. Use `npm run register -t <bot>`
 after installing this feature; other personalities cannot expose the command.
 
-Register separately from deployment. No `--` separator is needed (the older
+Registration is separate from deployment. No `--` separator is needed (the older
 `npm run register -- -t nijika` form still works):
 
 ```bash

@@ -6,11 +6,7 @@ if [[ "$project_prefix" != /* ]]; then
   echo 'PLEIADES_CONDA_PREFIX must be an absolute path.' >&2
   exit 1
 fi
-if [[ -f "$project_root/.deploy/current.json" || -e "$project_root/.deploy/transaction.json" || -e "$project_root/.deploy/lock" ]]; then
-  echo 'Finish or recover pending deployments and undeploy managed bots before updating the runtime.' >&2
-  exit 1
-fi
-# Never prune Node from a legacy environment which a deployed release might still use.
+# Never prune Node from a legacy Conda environment that older checkouts may still use.
 if [[ -e "$project_prefix/bin/node" ]]; then
   echo 'The selected Conda prefix contains Node.js. Select a new fonts-only PLEIADES_CONDA_PREFIX.' >&2
   exit 1

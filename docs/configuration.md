@@ -13,10 +13,8 @@ process environment (for example from a systemd `EnvironmentFile`) take preceden
 over the `.env` file, which may be absent; `PLEIADES_CONFIG_FILE` relocates
 `config.json` (see [deployment paths](#deployment-paths)).
 
-See [local setup](contributing/local-setup.md) and
-[deployment](contributing/deployment.md) for runtime and service settings.
-CI-gated `dev` updates and isolated production paths are described in
-[local auto-deployment](contributing/local-auto-deployment.md).
+See [local setup](contributing/local-setup.md) for the development runtime and
+[LCM release](contributing/lcm-release.md) for deployed instances.
 
 ## Environment variables
 
@@ -41,15 +39,15 @@ placeholders fail startup; there is no root `.env.example`.
 | `NOTIFY_API_PORT`                                                      | Optional konata [notification relay](#notification-relay-api) port (1–65535); blank means absent        |
 | `NOTIFY_API_KEY`                                                       | Relay bearer secret, at least 32 characters; required when `NOTIFY_API_PORT` is set                     |
 | `PLEIADES_FONT_DIR`                                                    | Optional absolute directory containing the CJK and emoji font assets; normally supplied by the launcher |
-| `PLEIADES_READY_FILE`                                                  | Deployment-managed startup marker; omit for manual startup                                              |
+| `PLEIADES_READY_FILE`                                                  | Optional startup marker written by a supervisor; omit for manual startup                                |
 | `PLEIADES_DATA_DIR`, `PLEIADES_CONFIG_FILE`                            | Optional absolute paths, see [deployment paths](#deployment-paths)                                      |
 
 ### Deployment paths
 
 A read-only release (see [LCM release](contributing/lcm-release.md)) cannot write
 below its working directory. These settings move what a bot writes or reads; each
-default is the original working-directory-relative location, so the
-[systemd flow](contributing/deployment.md) needs none of them.
+default is the original working-directory-relative location, so local development
+needs none of them.
 
 | Variable               | Default                      | Controls                                                                                                                               |
 | ---------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
@@ -584,7 +582,7 @@ The ping threshold is the optional `earthquake_alert` block of either bot's `con
 
 `ping_min_local_intensity` is a CWA intensity string (`0`–`4`, `5-`, `5+`, `6-`, `6+`,
 `7`) and defaults to `4` when the block or field is absent. Any other value or an
-unknown key stops startup and deployment preparation. It sets the lowest local
+unknown key stops startup. It sets the lowest local
 intensity that pings the role, sends the upgrade reply and turns the embed red.
 
 `POST /alerts` with `Authorization: Bearer <EARTHQUAKE_ALERT_KEY>` and a JSON body of at
@@ -656,10 +654,8 @@ a deployment controller: the first update posts an embed, later updates edit it.
 The API is off unless `NOTIFY_API_PORT` is set, binds `127.0.0.1` only, and needs
 konata's MongoDB. Enable it with the [operator steps](contributing/operations.md#notification-relay).
 
-The [Pleiades auto-deployment controller](contributing/local-auto-deployment.md)
-uses one editable notification per commit and names the bots and database services
-included in that deployment. Konata's own redeployment does not suppress
-notifications: temporary relay outages leave the latest progress queued for retry.
+Temporary relay outages, including a konata restart, leave the latest progress
+queued for retry.
 
 Routes map a name to a channel; callers name a route, never a channel:
 
@@ -712,9 +708,9 @@ To change the self-hosted LLM URL, edit `llm_auto_reply.endpoint` in
 configuration is validated and read once at startup. Gopher does not expose a
 settings HTTP API or rewrite its configuration.
 
-For a local process, stop it and run `npm run gopher` again. For a managed
-deployment, restart `pleiades@gopher.service`; its release links to the same
-local configuration. See [deployment](contributing/deployment.md).
+For a local process, stop it and run `npm run gopher` again. For a deployed
+instance, restart the gopher instance in LCM
+(see [LCM release](contributing/lcm-release.md)).
 
 ### Database inspection
 
@@ -722,8 +718,15 @@ Nijika's `/db` gives its `admin` users a read-only, ephemeral view of every guil
 database on the server, message content included. It is off by default and
 available on nijika only; another bot listing `db` fails startup.
 
-1. Create a MongoDB user limited to `readAnyDatabase`; see
-   [deployment](contributing/deployment.md#read-only-inspection-account).
+1. Create a MongoDB user limited to `readAnyDatabase`; startup rejects an account
+   with any write action. As a database administrator, enter the password at the
+   prompt:
+
+   ```javascript
+   use admin
+   db.createUser({ user: 'inspector', pwd: passwordPrompt(), roles: [{ role: 'readAnyDatabase', db: 'admin' }] })
+   ```
+
 2. Set `MONGO_INSPECT_URI` in `src/bot/nijika/.env` to
    `mongodb://inspector@127.0.0.1:27017/?authSource=admin`, adding the user's
    password after `inspector`, separated by a colon.
@@ -855,7 +858,7 @@ are re-measured every ten minutes (see [capacity](message-archive.md#status-pane
 The worker saves its latest host measurement for `/archive status`.
 
 Concurrency and notification cadence share validators across startup, scheduling,
-notifications and deploy preparation. Concurrency does not bound memory or Discord
+notifications. Concurrency does not bound memory or Discord
 load: the staging budget below caps in-flight reads and staged pages at any setting,
 and the shared SDK REST manager paces every request under Discord's limits. Queued
 reads and byte reservations are bounded at 16 per reader (at least 128), the same

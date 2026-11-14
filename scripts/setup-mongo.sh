@@ -6,10 +6,6 @@ if [[ $# != 1 || "$mongo_prefix" != /* ]]; then
   echo 'Usage: bash scripts/setup-mongo.sh /absolute/mongodb-runtime-prefix' >&2
   exit 1
 fi
-if [[ -f "$project_root/.deploy/mongodb.json" || -e "$project_root/.deploy/transaction.json" || -e "$project_root/.deploy/lock" ]]; then
-  echo 'Finish or recover pending deployments and remove the managed MongoDB service before changing its runtime.' >&2
-  exit 1
-fi
 for process_exe in /proc/[0-9]*/exe; do
   executable="$(readlink "$process_exe" 2>/dev/null || true)"
   if [[ "$executable" == "$mongo_prefix/"* ]]; then

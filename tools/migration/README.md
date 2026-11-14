@@ -123,7 +123,7 @@ for bot commands, and verify the checkout's pinned Node/npm versions. Historical
 source commits retain their own launcher contract. Otherwise complete the split
 setup below before starting bots.
 For persistent deployment, complete the split-runtime transition below and follow
-the [operations guide](../../docs/contributing/operations.md). To recheck before bot startup:
+[LCM release](../../docs/contributing/lcm-release.md). To recheck before bot startup:
 
 ```bash
 bash ~/pleiades-backup/tool/migration.sh verify ~/pleiades-backup
@@ -151,8 +151,8 @@ To transition the recovered host to the normal split layout:
    do not combine this transition with a database upgrade.
 3. Update local migration configuration to the new application and database
    prefixes. Preserve the restored data path, MongoDB configuration, and credentials.
-4. Follow the operations guide to prepare/review systemd deployment, stop the
-   recovery server cleanly, and cut over once. Do not run two servers against
+4. Register the services in LCM ([LCM release](../../docs/contributing/lcm-release.md)),
+   stop the recovery server cleanly, and cut over once. Do not run two servers against
    the same `dbPath`. Validate readiness before enabling bots.
 
 Alternatively, prepare both runtimes at the exported versions before restoring,
@@ -191,6 +191,4 @@ MIGRATION_TEST_BIN_DIR=/tmp/pleiades-mongo/bin PATH="$PATH:/tmp/pleiades-mongo/b
   npm run test:tools -- tools/migration/mongo.integration.test.ts
 ```
 
-`setup-mongo.sh` refuses to run while the checkout has deployment state under
-`.deploy/`; use a separate clone in that case. Tests never use the production
-database or bot credentials.
+Tests never use the production database or bot credentials.
