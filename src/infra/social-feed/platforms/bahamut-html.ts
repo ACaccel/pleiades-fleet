@@ -29,13 +29,22 @@ const contentOf = (article: string): string | undefined => {
   return undefined;
 };
 
-const plainText = (html: string): string =>
-  decodeEntities(
-    html
+/** Repeat until stable, so a removal cannot splice a new tag together (`<scr<b>ipt>`). */
+const stripTags = (html: string): string => {
+  let current = html;
+  let previous: string;
+  do {
+    previous = current;
+    current = current
       .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
       .replace(/<(?:br|\/?(?:div|p|li|tr))\b[^>]*>/gi, '\n')
-      .replace(/<[^>]*>/g, ''),
-  )
+      .replace(/<[^>]*>/g, '');
+  } while (current !== previous);
+  return current;
+};
+
+const plainText = (html: string): string =>
+  decodeEntities(stripTags(html))
     .replace(/[ \t]+/g, ' ')
     .replace(/\n\s*\n/g, '\n')
     .trim();

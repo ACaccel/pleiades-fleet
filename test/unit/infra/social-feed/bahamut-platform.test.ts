@@ -109,6 +109,15 @@ describe('Bahamut forum HTML', () => {
     expect(parsed.posts[0]?.text).not.toContain('inline comment');
   });
 
+  it('leaves no markup behind when removals splice tags together', () => {
+    const parsed = parseBahamutPage(
+      floor('15574', 'A<scr<style>x</style>ipt>B</script><<b>i>C', 131) + pager(1),
+      '36476/3047',
+    );
+    expect(parsed.posts[0]?.text).toBe('ABi>C');
+    expect(parsed.posts[0]?.text).not.toContain('<');
+  });
+
   it('distinguishes the opening floor from replies', () => {
     expect(parseBahamutPage(floor('1', 'Opening'), '1/2').posts[0]?.isReply).toBe(false);
   });
