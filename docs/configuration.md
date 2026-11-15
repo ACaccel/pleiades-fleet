@@ -264,6 +264,11 @@ Previews cover post permalinks plus these short and share forms: Instagram
 Links inside `<...>`, a code span or block, or a spoiler (`||...||`) are not
 previewed, and full-width punctuation directly after a link ends it.
 
+Custom preview cards (X, Facebook, Threads, Bahamut) are Components V2
+containers rather than classic embeds: Discord renders a container roughly twice
+as wide, so media shows larger and less cropped. A container holds at most ten
+media items in one gallery below the card text.
+
 Threads previews render custom cards from the selected proxy's validated
 OpenGraph text and images, linking to the original post. They do not require
 Discord to expand the proxy URL again. Image cards use the gallery delivery
@@ -274,8 +279,8 @@ card with a fallback link.
 
 Facebook previews use a custom card with a Facebook header, a title linking to
 the source post, and available OpenGraph text and images. All distinct HTTPS
-images are shown in source order, in galleries of up to four images per reply;
-additional galleries use separate replies without repeating the post text.
+images are shown in source order: the first ten inside the card, any more in
+follow-up gallery messages of ten without repeating the post text.
 Linked titles retain up to Discord's 256-character limit and wrap according to
 the client's available width; the bot does not impose a one-line cutoff.
 The body is capped at 350 Unicode
@@ -300,13 +305,11 @@ and GIF in post order, reply/repost/like/view counts and post time.
   the first conversion service that answers `{base}/tweet_video/{name}.gif`
   (the bot requests it once before posting, which also warms the service's
   cache). A GIF no service renders is handled like a video.
-- Videos are uploaded into one Components V2 card holding every media item. Each
-  takes the largest MP4 encoding estimated to fit what earlier uploads left of
-  `maxVideoBytes`, which bounds the whole message; a GIF, which X serves as an
-  MP4 without a bitrate, is checked only while downloading. A video that cannot
-  be uploaded shows its thumbnail.
-- With no video uploaded, classic embeds show up to four images (photos, GIF
-  animations, video thumbnails) and link the post when a video is not playable.
+- Videos are uploaded into the card. Each takes the largest MP4 encoding
+  estimated to fit what earlier uploads left of `maxVideoBytes`, which bounds the
+  whole message; a GIF, which X serves as an MP4 without a bitrate, is checked
+  only while downloading. A video that cannot be uploaded shows its thumbnail,
+  and the card links the post to watch it.
 
 Posts the API marks possibly sensitive, and every post while no API answers, use
 a proxy link as before.
@@ -315,9 +318,10 @@ When metadata includes a supported direct video URL, the bot downloads it and
 uploads it as a Discord attachment. Video downloads accept only HTTPS URLs
 with `video/mp4` or `video/quicktime` content types, validate DNS and redirects
 against private-network access, and allow at most two concurrent downloads.
-Successfully uploaded videos appear last in a single Components V2 card, below
-the author, post text, engagement counts and source information. This ordering
-also applies to uploaded X videos and social-feed deliveries. Proxy-link previews
+Uploaded videos appear in the card's gallery, below the author, post text,
+engagement counts and source information; a multi-image post keeps its images
+ahead of the video. This ordering also applies to X posts and social-feed
+deliveries. Proxy-link previews
 are expanded by Discord, which controls their layout.
 
 | `social_link_preview` field | Default           | Allowed values                                | Purpose                                                                 |
@@ -427,9 +431,8 @@ previews: posts become custom cards with every media item, a single playable
 video uses a proxy, and sensitive posts or failed status API reads use the proxy.
 Videos the card shows are uploaded within a bounded budget (8 MiB per message,
 15 seconds per download); one that does not fit shows its thumbnail and the card
-links the source. The localized announcement and
-preview are sent together; video cards include the announcement inside their
-Components V2 container.
+links the source. The localized announcement and preview are sent together as
+one message, with the announcement leading inside the card.
 
 Feeds use their own `social_feed.platforms.x.apiBaseUrl`, `timeoutMs`,
 `embedProxyHost` and optional `gifBaseUrls` (looping GIFs, as

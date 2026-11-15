@@ -18,7 +18,7 @@
  * subscription to delivered message.
  */
 import { describe, expect, it, vi, type MockInstance } from 'vitest';
-import type { Channel, Client } from 'discord.js';
+import { MessageFlags, type Channel, type Client } from 'discord.js';
 import { Types } from 'mongoose';
 
 import { buildFakeFeedPlatform, buildFeedPost } from '../../../fixtures/social-feed/fake-platform';
@@ -176,7 +176,10 @@ const makeRepos = (
 
 /** Payload shape `sendFeedPost` hands to `channel.send`. */
 interface SendPayload {
-  readonly content: string;
+  /** Absent on a Components V2 card, which carries its announcement inside. */
+  readonly content?: string;
+  readonly flags?: number;
+  readonly components?: unknown[];
   readonly allowedMentions: unknown;
 }
 type SendSpy = ReturnType<typeof vi.fn<(payload: SendPayload) => Promise<undefined>>>;
@@ -754,9 +757,10 @@ describe('runFeedPass — failure isolation', () => {
     expect(buildPreview).toHaveBeenCalledTimes(1);
     expect(cursorOf(first)).toBeUndefined();
     expect(cursorOf(second)?.id).toBe('10');
-    expect(secondSend.mock.calls[0]?.[0]).toHaveProperty('embeds');
-    expect(secondSend.mock.calls[0]?.[0].content).toContain('<https://fake.invalid/');
-    expect(secondSend.mock.calls[0]?.[0].content).not.toContain('<<');
+    const card = JSON.stringify(secondSend.mock.calls[0]?.[0].components);
+    expect(secondSend.mock.calls[0]?.[0]).toHaveProperty('flags', MessageFlags.IsComponentsV2);
+    expect(card).toContain('<https://fake.invalid/');
+    expect(card).not.toContain('<<');
 
     firstSend.mockResolvedValue(undefined);
     await runFeedPass(deps, false);
@@ -1389,7 +1393,7 @@ describe('runFeedPass — persistent snapshot tracking', () => {
     await runFeedPass(deps, false);
     expect(
       send.mock.calls.map(
-        ([payload]) => payload.content.match(/https:\/\/fake\.invalid\/([^"}]+)/)?.[1],
+        ([payload]) => payload.content?.match(/https:\/\/fake\.invalid\/([^"}]+)/)?.[1],
       ),
     ).toEqual(['z', 'a', 'b']);
     expect(fetchTimeline).toHaveBeenCalledWith(ACCOUNT, undefined);

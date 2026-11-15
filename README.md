@@ -72,8 +72,8 @@ Every bot shares the framework capabilities:
   video uploads and engagement counts when available; the title links to the post,
   and failed video delivery falls back to a link. Threads also renders custom
   cards and video uploads from validated proxy metadata, without relying on
-  Discord to expand a proxy URL. Uploaded videos use a single Components V2
-  card with all post information above the video. nhentai and wnacg links in
+  Discord to expand a proxy URL. Custom cards are wide Components V2 cards with
+  all post information above the media. nhentai and wnacg links in
   age-restricted channels open a paged reader with prefetched pages.
   Pixiv artwork previews are available with an operator-configured proxy list. See
   [preview configuration](docs/configuration.md#social-previews-and-feeds) for setup.

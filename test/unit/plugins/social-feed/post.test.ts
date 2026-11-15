@@ -15,7 +15,6 @@ import {
   ComponentType,
   type SendableChannels,
   type MessageCreateOptions,
-  type EmbedBuilder,
   type ContainerBuilder,
 } from 'discord.js';
 
@@ -157,12 +156,21 @@ describe('sendFeedPost', () => {
     });
     expect(send).toHaveBeenCalledTimes(1);
     const payload = send.mock.calls[0]![0];
-    expect(payload.content).toBe(announcement);
-    expect((payload.embeds as EmbedBuilder[]).map((embed) => embed.data.image?.url)).toEqual([
-      'https://pbs.twimg.com/1.jpg',
-      'https://pbs.twimg.com/2.jpg',
-    ]);
-    expect((payload.embeds?.[0] as EmbedBuilder).data.description).toBe(socialPost.text);
+    expect(payload.flags).toBe(MessageFlags.IsComponentsV2);
+    expect(payload.content).toBeUndefined();
+    const container = (payload.components?.[0] as ContainerBuilder).toJSON();
+    expect(container.components[0]).toEqual({
+      type: ComponentType.TextDisplay,
+      content: announcement,
+    });
+    expect(JSON.stringify(container)).toContain('New post @everyone');
+    expect(container.components.at(-1)).toMatchObject({
+      type: ComponentType.MediaGallery,
+      items: [
+        { media: { url: 'https://pbs.twimg.com/1.jpg' } },
+        { media: { url: 'https://pbs.twimg.com/2.jpg' } },
+      ],
+    });
     expect(payload.allowedMentions).toEqual({ parse: [] });
   });
 
@@ -221,11 +229,16 @@ describe('sendFeedPost', () => {
     });
     expect(send).toHaveBeenCalledTimes(1);
     const payload = send.mock.calls[0]![0];
-    expect(payload.content).toBe(announcement);
     expect(payload.files).toBeUndefined();
-    expect((payload.embeds?.[0] as EmbedBuilder).data.image?.url).toBe(
-      'https://pbs.twimg.com/thumb.jpg',
-    );
+    const container = (payload.components?.[0] as ContainerBuilder).toJSON();
+    expect(container.components[0]).toEqual({
+      type: ComponentType.TextDisplay,
+      content: announcement,
+    });
+    expect(container.components.at(-1)).toMatchObject({
+      type: ComponentType.MediaGallery,
+      items: [{ media: { url: 'https://pbs.twimg.com/thumb.jpg' } }],
+    });
   });
 
   it('propagates Discord send failures without sending a second fallback announcement', async () => {

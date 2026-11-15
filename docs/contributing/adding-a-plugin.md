@@ -43,8 +43,9 @@ Its optional proxy-host list must gate both registry loading and guild settings
 capabilities so older configurations do not advertise an unavailable provider.
 Facebook and Threads custom cards use existing OpenGraph retrieval rather than
 discarding validated metadata and relying on Discord to expand a proxy URL.
-Keep uploaded videos last in a single Components V2 card, after all post metadata;
-classic embeds with attachments let Discord place the video above the embed.
+Render custom cards as Components V2 containers with media after all post
+metadata: containers render wider than classic embeds, and an embed with
+attachments lets Discord place the video above it.
 Direct video attachments
 share its host validation and bounded DNS resolver with address checks, download sizes,
 deadlines and concurrency. Preserve the card and a clickable fallback link when

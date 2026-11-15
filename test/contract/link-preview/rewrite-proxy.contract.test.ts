@@ -10,7 +10,12 @@
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import nock from 'nock';
-import type { MessageCreateOptions } from 'discord.js';
+import {
+  ComponentType,
+  MessageFlags,
+  type ContainerBuilder,
+  type MessageCreateOptions,
+} from 'discord.js';
 
 import {
   OgClient,
@@ -554,7 +559,7 @@ describe('threads weak-image host selection contract', () => {
     nock.restore();
   });
 
-  it('sends explicit image embeds after a failed proxy without requiring Discord to fetch a proxy URL', async () => {
+  it('sends an explicit image card after a failed proxy without requiring Discord to fetch a proxy URL', async () => {
     const path = '/@user/post/ExamplePost';
     const source = new URL(`https://www.threads.com${path}?hl=zh-tw`);
     crawler('fzthreads.com').get(path).reply(404, 'not found');
@@ -589,16 +594,19 @@ describe('threads weak-image host selection contract', () => {
 
     expect(replies).toHaveLength(1);
     expect(replies[0]?.content).toBeUndefined();
-    expect(
-      replies[0]?.embeds?.map((embed) => ('toJSON' in embed ? embed.toJSON() : embed)),
-    ).toMatchObject([
+    expect(replies[0]?.flags).toBe(MessageFlags.IsComponentsV2);
+    const card = (replies[0]?.components?.[0] as ContainerBuilder).toJSON();
+    expect(card.components).toMatchObject([
+      { type: ComponentType.TextDisplay, content: `**[Author on Threads](${source.href})**` },
+      { type: ComponentType.TextDisplay, content: 'Post text' },
+      { type: ComponentType.TextDisplay },
       {
-        url: source.href,
-        title: 'Author on Threads',
-        description: 'Post text',
-        image: { url: POST_IMAGE },
+        type: ComponentType.MediaGallery,
+        items: [
+          { media: { url: POST_IMAGE } },
+          { media: { url: 'https://cdn.example/second.jpg' } },
+        ],
       },
-      { url: source.href, image: { url: 'https://cdn.example/second.jpg' } },
     ]);
     expect(replies[0]?.allowedMentions).toEqual({ parse: [] });
   });

@@ -1,19 +1,18 @@
 /**
- * Unit tests for the custom X card layouts: the classic embed gallery
- * (author, escaped text, quote, compact counts, timestamp, every media
- * item with GIFs animated), its video fallback (thumbnail plus a link to the
- * video), the Components V2 card around the media, and the choice of which
- * video encodings to try.
+ * Unit tests for the custom X card layout: the Components V2 card (author,
+ * escaped text, quote, compact counts, timestamp, a link for an unplayable
+ * clip, the media gallery last) and the choice of which video encodings to
+ * try. Which URL each media item contributes is covered by the renderer
+ * tests.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { ComponentType } from 'discord.js';
 
 import type { Translator } from '../../../../src/core/i18n';
-import type { PostClip, PostMedia, SocialPost } from '../../../../src/infra/link-preview';
+import type { PostClip, SocialPost } from '../../../../src/infra/link-preview';
 import { echoTranslator } from '../../../fixtures/runtime';
 import {
   buildPostContainer,
-  buildPostEmbeds,
   pickVideoVariants,
 } from '../../../../src/plugins/social-link-preview/internal/render-post';
 
@@ -25,15 +24,6 @@ const translator: Translator = {
     return params === undefined ? name : `${name}(${Object.values(params).join(',')})`;
   }),
 };
-
-const photo = (url: string): PostMedia => ({ kind: 'photo', url });
-
-const clip = (kind: PostClip['kind'], extra: Partial<PostClip> = {}): PostClip => ({
-  kind,
-  durationSeconds: 10,
-  variants: [],
-  ...extra,
-});
 
 const post = (extra: Partial<SocialPost> = {}): SocialPost => ({
   url: 'https://x.com/NASA/status/1',
@@ -50,53 +40,27 @@ const post = (extra: Partial<SocialPost> = {}): SocialPost => ({
   ...extra,
 });
 
-describe('buildPostEmbeds', () => {
-  it('shows the author, text, compact counts and post time', () => {
-    const [embed, ...rest] = buildPostEmbeds(post(), translator);
-    expect(rest).toEqual([]);
-    expect(embed?.data.color).toBe(0x1d9bf0);
-    expect(embed?.data.author).toEqual({
-      name: 'NASA (@NASA)',
-      url: 'https://x.com/NASA',
-      icon_url: 'https://pbs.twimg.com/a.jpg',
-    });
-    expect(embed?.data.url).toBe('https://x.com/NASA/status/1');
-    expect(embed?.data.description).toBe('Welcome home!');
-    expect(embed?.data.footer?.text).toBe(
-      'X · post_replies(196) · post_reposts(847) · post_likes(6.5K) · post_views(1.5M)',
-    );
-    expect(embed?.data.timestamp).toBe(new Date(1_791_840_744_000).toISOString());
-  });
+/** The text beside the avatar: heading, then the escaped body. */
+const headerText = (container: ReturnType<typeof buildPostContainer>): string | undefined => {
+  const [first] = container.toJSON().components;
+  if (first?.type === ComponentType.Section) return first.components[0]?.content;
+  return first?.type === ComponentType.TextDisplay ? first.content : undefined;
+};
 
-  it('omits unreported counts and falls back to the site label', () => {
-    const [embed] = buildPostEmbeds(post({ stats: {} }), translator);
-    expect(embed?.data.footer?.text).toBe('X');
-  });
-
-  it('spreads up to four https photos over embeds sharing the post URL', () => {
-    const images = ['1', '2', '3', '4', '5'].map((n) => `https://pbs.twimg.com/${n}.jpg`);
-    const embeds = buildPostEmbeds(
-      post({ media: ['http://insecure/0.jpg', ...images].map((url) => photo(url)) }),
-      translator,
-    );
-    expect(embeds.map((e) => e.data.image?.url)).toEqual(images.slice(0, 4));
-    expect(embeds.every((e) => e.data.url === 'https://x.com/NASA/status/1')).toBe(true);
-    expect(embeds[0]?.data.color).toBe(0x1d9bf0);
-    expect(embeds.slice(1).every((embed) => embed.data.color === undefined)).toBe(true);
-  });
-
+describe('buildPostContainer', () => {
   it('escapes markdown in the post text', () => {
-    const [embed] = buildPostEmbeds(
+    const container = buildPostContainer(
       post({ text: '# big\n||spoiler|| **bold** [x.com](https://evil.test)' }),
       translator,
+      [],
     );
-    expect(embed?.data.description).toBe(
-      '\\# big\n\\|\\|spoiler\\|\\| \\*\\*bold\\*\\* \\[x.com](https://evil.test)',
+    expect(headerText(container)).toBe(
+      '**[NASA](https://x.com/NASA)** @NASA\n\\# big\n\\|\\|spoiler\\|\\| \\*\\*bold\\*\\* \\[x.com](https://evil.test)',
     );
   });
 
   it('appends the quoted post as a block quote', () => {
-    const [embed] = buildPostEmbeds(
+    const container = buildPostContainer(
       post({
         quote: {
           url: 'https://x.com/s/status/2',
@@ -106,57 +70,38 @@ describe('buildPostEmbeds', () => {
         },
       }),
       translator,
+      [],
     );
-    expect(embed?.data.description).toBe(
-      'Welcome home!\n\npost_quote(Someone,s,https://x.com/s/status/2)\n> line one\n> line two',
-    );
-  });
-
-  it('shows a video post with its thumbnail and a link to the video', () => {
-    const [embed] = buildPostEmbeds(
-      post({ media: [clip('video', { thumbnailUrl: 'https://pbs.twimg.com/t.jpg' })] }),
-      translator,
-    );
-    expect(embed?.data.image?.url).toBe('https://pbs.twimg.com/t.jpg');
-    expect(embed?.data.description).toBe(
-      'Welcome home!\n\npost_watch_video(https://x.com/NASA/status/1)',
+    expect(headerText(container)).toBe(
+      '**[NASA](https://x.com/NASA)** @NASA\nWelcome home!\n\npost_quote(Someone,s,https://x.com/s/status/2)\n> line one\n> line two',
     );
   });
 
-  it('shows every item in post order, a GIF as its animation, without a watch link', () => {
-    const embeds = buildPostEmbeds(
-      post({
-        media: [
-          clip('gif', {
-            thumbnailUrl: 'https://pbs.twimg.com/g.jpg',
-            animationUrl: 'https://gif.example/g.gif',
-          }),
-          photo('https://pbs.twimg.com/1.jpg'),
-          clip('gif', { thumbnailUrl: 'https://pbs.twimg.com/h.jpg' }),
-        ],
-      }),
-      translator,
+  it('links the post to watch a clip shown only as its thumbnail', () => {
+    const container = buildPostContainer(post(), translator, ['https://pbs.twimg.com/t.jpg'], {
+      linkVideo: true,
+    });
+    expect(headerText(container)).toBe(
+      '**[NASA](https://x.com/NASA)** @NASA\nWelcome home!\n\npost_watch_video(https://x.com/NASA/status/1)',
     );
-    expect(embeds.map((e) => e.data.image?.url)).toEqual([
-      'https://gif.example/g.gif',
-      'https://pbs.twimg.com/1.jpg',
-      'https://pbs.twimg.com/h.jpg',
+  });
+
+  it('omits unreported counts and the gallery of a post without media', () => {
+    const json = buildPostContainer(post({ stats: {} }), translator, []).toJSON();
+    expect(json.components.map((component) => component.type)).toEqual([
+      ComponentType.Section,
+      ComponentType.TextDisplay,
     ]);
-    // The second GIF has no animation, so it cannot play in an embed.
-    expect(embeds[0]?.data.description).toContain('post_watch_video');
+    expect(json.components[1]).toMatchObject({
+      content: '-# <t:1791840744:f> · post_view_original(https://x.com/NASA/status/1)',
+    });
   });
 
-  it('links no video when every clip animates in the embed', () => {
-    const [embed] = buildPostEmbeds(
-      post({ media: [clip('gif', { animationUrl: 'https://gif.example/g.gif' })] }),
-      translator,
-    );
-    expect(embed?.data.image?.url).toBe('https://gif.example/g.gif');
-    expect(embed?.data.description).toBe('Welcome home!');
+  it('leads with the announcement', () => {
+    const json = buildPostContainer(post(), translator, [], { announcement: 'New post' }).toJSON();
+    expect(json.components[0]).toEqual({ type: ComponentType.TextDisplay, content: 'New post' });
   });
-});
 
-describe('buildPostContainer', () => {
   it('puts the text beside the avatar, then the counts, then the media last', () => {
     const json = buildPostContainer(post(), translator, [
       'https://pbs.twimg.com/1.jpg',

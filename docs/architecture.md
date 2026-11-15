@@ -175,8 +175,7 @@ The avatar context menu uses `info`. Archive renderers map their
 existing state rules through `ARCHIVE_COLORS`; a full backup's `partial` result is
 an error, while a periodic pass's `partial` result is a warning.
 Social cards retain source identity through `SOCIAL_COLORS` (X `#1D9BF0`, Facebook
-`#1877F2`), including Components V2 accents; generic previews use `info` and
-auxiliary gallery embeds omit color.
+`#1877F2`) as Components V2 accents; generic previews use `info`.
 Relayed notifications show a running thread as `info`, success as `success`, failure
 as `error` and cancellation as `neutral`.
 CWA earthquake report embeds use `EARTHQUAKE_REPORT_COLORS` to mirror the agency's
@@ -249,9 +248,10 @@ every media item in post order, and keeps the proxy rewrite only for a lone vide
 a proxy can play. GIFs become looping images through an optional conversion
 service, confirmed by the provider before use. Link previews and X feed
 subscriptions share this provider and the Discord renderer in
-[`infra/discord/social-preview.ts`](../src/infra/discord/social-preview.ts): classic
-embeds, or one Components V2 card with all post metadata above every media item
-when videos are uploaded, within one byte budget per message.
+[`infra/discord/social-preview.ts`](../src/infra/discord/social-preview.ts): one
+Components V2 card with all post metadata above every media item, uploaded videos
+sharing one byte budget per message. Custom cards use containers rather than
+classic embeds because Discord renders them nearly twice as wide.
 Feed platforms return neutral single-message previews; each account pass shares post preparation
 across its destinations. Feed announcements and media use one send, and preview
 failure falls back to the existing proxy announcement. Feed configuration remains
@@ -309,8 +309,8 @@ selections remain unchanged. See
 Threads retains validated proxy OpenGraph metadata for custom cards instead of
 depending on a second fetch by Discord's URL crawler. Facebook retains metadata
 from proxies or the source site. Both preserve the complete image list. The renderer
-sends all distinct HTTPS images in four-image gallery replies; only the first
-reply carries the post text. Facebook-specific parsing maps the proxy's source
+sends all distinct HTTPS images in ten-item galleries; the first sits in the card
+below the post text, later ones follow as bare gallery messages. Facebook-specific parsing maps the proxy's source
 summary to optional engagement counts. Direct videos use a dedicated downloader with the shared host validation and
 bounded DNS resolver, plus address checks, deadlines and a concurrency limit;
 the renderer places all card metadata above the video in one Components V2 message

@@ -1,13 +1,10 @@
 /**
- * Discord layouts for a structured {@link SocialPost} (X).
- *
- * Two layouts, chosen by the renderer:
- *   - classic embeds for a post without an uploaded video. Every media item
- *     shares the post URL, which Discord renders as one gallery card: photos,
- *     GIFs as their animated rendition, and a thumbnail for any other clip;
- *   - a Components V2 container for a post with an uploaded video, so the
- *     text and every media item, playable videos included, sit in the same
- *     card (an embed cannot carry video).
+ * Discord layout for a structured {@link SocialPost} (X): one Components V2
+ * container with the author, text and counts above a gallery of every media
+ * item, in post order. Photos show as themselves, GIFs as their animated
+ * rendition, uploaded videos as playable attachments and any other clip as
+ * its thumbnail. A container renders far wider than a classic embed and,
+ * unlike one, can carry video.
  *
  * Post text is escaped so upstream content cannot inject Discord markdown
  * (headings, masked links, spoilers). Counts are compacted (`1.2K`) to match
@@ -16,7 +13,6 @@
 import { SOCIAL_COLORS } from './presentation-colors';
 import {
   ContainerBuilder,
-  EmbedBuilder,
   MediaGalleryBuilder,
   SectionBuilder,
   TextDisplayBuilder,
@@ -26,9 +22,8 @@ import {
 import type { Translator } from '../../core/i18n';
 import type { PostClip, PostMedia, PostVideoVariant, SocialPost } from '../link-preview';
 
-const SITE_LABEL = 'X';
-/** Discord renders at most four images per embed gallery card; X posts carry at most four. */
-const MAX_IMAGES = 4;
+/** Discord's item limit for one media gallery; an X post carries at most four. */
+const MAX_GALLERY_ITEMS = 10;
 const MAX_TEXT = 1500;
 const MAX_QUOTE = 300;
 /** Leaves room for container overhead, so an estimate near the cap is not tried. */
@@ -93,61 +88,36 @@ const postBody = (post: SocialPost, translator: Translator): string => {
 };
 
 /**
- * What an embed can show for one media item: the photo, a GIF's animated
- * rendition, or else a clip's thumbnail. Exported for the renderer.
+ * What a gallery shows for an item it does not upload: the photo, a GIF's
+ * animated rendition, or else a clip's thumbnail.
  */
 export const mediaImageUrl = (item: PostMedia): string | undefined =>
   item.kind === 'photo' ? item.url : (item.animationUrl ?? item.thumbnailUrl);
 
-/** A clip an embed cannot play: a video, or a GIF without an animated rendition. */
-const isStillClip = (item: PostMedia): item is PostClip =>
+/** A clip a gallery cannot play unless uploaded: a video, or a GIF without an animation. */
+export const isStillClip = (item: PostMedia): item is PostClip =>
   item.kind !== 'photo' && item.animationUrl === undefined;
-
-/**
- * Classic embeds for a post. A clip that cannot play in an embed shows its
- * thumbnail, and the description links the post to watch it. Exported for
- * tests.
- */
-export const buildPostEmbeds = (post: SocialPost, translator: Translator): EmbedBuilder[] => {
-  const images = post.media.map(mediaImageUrl).filter(isHttps).slice(0, MAX_IMAGES);
-
-  let description = postBody(post, translator);
-  if (post.media.some(isStillClip)) {
-    const watch = translator.t('replies:social_link_preview.post_watch_video', { url: post.url });
-    description = description.length > 0 ? `${description}\n\n${watch}` : watch;
-  }
-  const stats = statsLine(post, translator);
-  const main = new EmbedBuilder()
-    .setColor(SOCIAL_COLORS.x)
-    .setAuthor({
-      name: `${post.author.name} (@${post.author.handle})`,
-      url: post.author.url,
-      ...(isHttps(post.author.avatarUrl) ? { iconURL: post.author.avatarUrl } : {}),
-    })
-    .setURL(post.url)
-    .setFooter({ text: stats.length > 0 ? `${SITE_LABEL} · ${stats}` : SITE_LABEL })
-    .setTimestamp(post.createdAt);
-  if (description.length > 0) main.setDescription(description);
-  const [first, ...rest] = images;
-  if (first !== undefined) main.setImage(first);
-  // Embeds sharing the main embed's URL are merged into its image gallery.
-  return [main, ...rest.map((image) => new EmbedBuilder().setURL(post.url).setImage(image))];
-};
 
 /**
  * A Components V2 card holding the post text and counts above its media.
  * `mediaUrls` are the gallery items in post order: `attachment://`
  * references of uploaded videos and image URLs for everything else.
+ * `linkVideo` adds a link to watch a clip shown only as its thumbnail.
  * Exported for tests.
  */
 export const buildPostContainer = (
   post: SocialPost,
   translator: Translator,
   mediaUrls: readonly string[],
-  announcement?: string,
+  options: { readonly announcement?: string; readonly linkVideo?: boolean } = {},
 ): ContainerBuilder => {
+  const { announcement } = options;
   const heading = `**[${escapeText(post.author.name)}](${post.author.url})** @${post.author.handle}`;
-  const body = postBody(post, translator);
+  let body = postBody(post, translator);
+  if (options.linkVideo === true) {
+    const watch = translator.t('replies:social_link_preview.post_watch_video', { url: post.url });
+    body = body.length > 0 ? `${body}\n\n${watch}` : watch;
+  }
   const header = new TextDisplayBuilder().setContent(
     body.length > 0 ? `${heading}\n${body}` : heading,
   );
@@ -173,11 +143,14 @@ export const buildPostContainer = (
   } else {
     container.addTextDisplayComponents(header);
   }
-  return container
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# ${footer}`))
-    .addMediaGalleryComponents(
-      new MediaGalleryBuilder().addItems(mediaUrls.map((url) => ({ media: { url } }))),
-    );
+  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# ${footer}`));
+  return mediaUrls.length === 0
+    ? container
+    : container.addMediaGalleryComponents(
+        new MediaGalleryBuilder().addItems(
+          mediaUrls.slice(0, MAX_GALLERY_ITEMS).map((url) => ({ media: { url } })),
+        ),
+      );
 };
 
 /**

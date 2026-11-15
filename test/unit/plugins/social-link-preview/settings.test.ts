@@ -213,8 +213,8 @@ describe('guild social-preview preferences', () => {
       });
       expect(downloadVideo).not.toHaveBeenCalled();
       expect(reply).toHaveBeenCalledOnce();
-      const payload = reply.mock.calls[0]?.[0] as { embeds: unknown[]; files?: unknown[] };
-      expect(payload.embeds).toHaveLength(1);
+      const payload = reply.mock.calls[0]?.[0] as { components: unknown[]; files?: unknown[] };
+      expect(payload.components).toHaveLength(1);
       expect(payload.files).toBeUndefined();
     },
   );

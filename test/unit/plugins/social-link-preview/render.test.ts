@@ -60,6 +60,28 @@ const makeMessage = (): { message: Message; replies: ReplyPayload[] } => {
   return { message, replies };
 };
 
+/** The card container of a Components V2 reply. */
+const containerOf = (reply: ReplyPayload | undefined) =>
+  (reply?.components?.[0] as ContainerBuilder).toJSON();
+
+/** Gallery item URLs of a reply: its card's last gallery, or a bare gallery message. */
+const mediaOf = (reply: ReplyPayload | undefined): string[] => {
+  const top = (reply?.components?.[0] as { toJSON: () => { type: number } }).toJSON();
+  const gallery =
+    top.type === ComponentType.MediaGallery ? top : containerOf(reply).components.at(-1);
+  return gallery?.type === ComponentType.MediaGallery
+    ? (gallery as unknown as { items: { media: { url: string } }[] }).items.map(
+        (item) => item.media.url,
+      )
+    : [];
+};
+
+/** Every text block of a reply's card, in order. */
+const textsOf = (reply: ReplyPayload | undefined): string[] =>
+  containerOf(reply).components.flatMap((component) =>
+    component.type === ComponentType.TextDisplay ? [component.content] : [],
+  );
+
 describe('renderPreview', () => {
   const facebookResult: RenderablePreviewResult = {
     kind: 'card',
@@ -200,14 +222,12 @@ describe('renderPreview', () => {
         expect(replies[0]?.embeds).toBeUndefined();
         expect(replies[0]?.content).toBeUndefined();
       } else {
-        const embed = replies[0]?.embeds?.[0] as {
-          data: { url: string; title: string; image?: { url: string } };
-        };
-        expect(embed.data.url).toBe(sourceUrl);
-        expect(embed.data.title).toBe('Author on Threads');
+        expect(replies[0]?.flags).toBe(MessageFlags.IsComponentsV2);
+        expect(textsOf(replies[0])).toContain(`**[Author on Threads](${sourceUrl})**`);
         expect(replies[0]?.files).toBeUndefined();
-        expect(embed.data.image?.url).toBe('https://cdn.example/poster.jpg');
-        expect(replies[0]?.content).toBe(delivery === 'disabled' ? undefined : `<${fallbackUrl}>`);
+        expect(mediaOf(replies[0])).toEqual(['https://cdn.example/poster.jpg']);
+        expect(textsOf(replies[0]).includes(`<${fallbackUrl}>`)).toBe(delivery !== 'disabled');
+        expect(replies[0]?.content).toBeUndefined();
       }
       if (delivery === 'disabled') expect(downloadVideo).not.toHaveBeenCalled();
       else expect(downloadVideo).toHaveBeenCalledWith('https://cdn.example/video.mp4', 1234, 500);
@@ -279,7 +299,10 @@ describe('renderPreview', () => {
         });
         expect(container.components.at(-1)?.type).toBe(ComponentType.MediaGallery);
       } else {
-        expect(replies[0]?.content).toBe('Source announcement\n<https://proxy.example/reel/1>');
+        expect(replies[0]?.content).toBeUndefined();
+        const texts = textsOf(replies[0]);
+        expect(texts[0]).toBe('Source announcement');
+        expect(texts.at(-1)).toBe('<https://proxy.example/reel/1>');
       }
     },
   );
@@ -294,9 +317,9 @@ describe('renderPreview', () => {
     });
 
     expect(downloadVideo).toHaveBeenCalledWith('https://cdn.example/video.mp4', 1234, 500);
-    expect(replies[0]?.content).toBe('<https://proxy.example/reel/1>');
+    expect(textsOf(replies[0])).toContain('<https://proxy.example/reel/1>');
     expect(replies[0]?.files).toBeUndefined();
-    expect((replies[0]?.embeds?.[0] as { data: { image?: unknown } }).data.image).toBeDefined();
+    expect(mediaOf(replies[0])).toEqual(['https://cdn.example/poster.jpg']);
     expect(replies[0]?.allowedMentions).toEqual({ parse: [] });
   });
 
@@ -306,7 +329,7 @@ describe('renderPreview', () => {
       downloadVideo: vi.fn().mockRejectedValue(new Error('Timeout')),
     });
     expect(replies).toHaveLength(1);
-    expect(replies[0]?.content).toBe('<https://proxy.example/reel/1>');
+    expect(textsOf(replies[0])).toContain('<https://proxy.example/reel/1>');
   });
 
   it.each([
@@ -329,7 +352,7 @@ describe('renderPreview', () => {
       downloadVideo: vi.fn().mockResolvedValue({ data: Buffer.from('video'), name: 'preview.mp4' }),
     });
     expect(message.reply).toHaveBeenCalledTimes(2);
-    expect(replies[0]?.content).toBe('<https://proxy.example/reel/1>');
+    expect(textsOf(replies[0])).toContain('<https://proxy.example/reel/1>');
     expect(replies[0]?.files).toBeUndefined();
   });
 
@@ -372,7 +395,7 @@ describe('renderPreview', () => {
       downloadVideo: vi.fn().mockResolvedValue({ data: Buffer.from('video'), name: 'preview.mp4' }),
     });
     expect(message.reply).toHaveBeenCalledTimes(2);
-    expect(replies[0]?.content).toBe('<https://proxy.example/reel/1>');
+    expect(textsOf(replies[0])).toContain('<https://proxy.example/reel/1>');
   });
 
   it('replies with the proxy URL as content for a rewritten-url result', async () => {
@@ -391,7 +414,7 @@ describe('renderPreview', () => {
     expect(payload?.embeds).toBeUndefined();
   });
 
-  it('replies with an embed for a card result', async () => {
+  it('replies with a Components V2 card for a card result', async () => {
     const { message, replies } = makeMessage();
     const result: RenderablePreviewResult = {
       kind: 'card',
@@ -408,11 +431,17 @@ describe('renderPreview', () => {
 
     expect(replies).toHaveLength(1);
     const [payload] = replies;
-    expect(payload?.embeds).toHaveLength(1);
+    expect(payload?.flags).toBe(MessageFlags.IsComponentsV2);
+    expect(payload?.embeds).toBeUndefined();
+    expect(textsOf(payload).slice(0, 2)).toEqual([
+      '**[Title](https://forum.gamer.com.tw/post/1)**',
+      'Desc',
+    ]);
+    expect(mediaOf(payload)).toEqual(['https://cdn/og.jpg']);
     expect(payload?.allowedMentions).toEqual({ parse: [] });
   });
 
-  it('retains an optional announcement only on the first gallery reply', async () => {
+  it('retains an optional announcement only in the card, not a follow-up gallery', async () => {
     const { message, replies } = makeMessage();
     await renderPreview(
       message,
@@ -420,7 +449,7 @@ describe('renderPreview', () => {
         kind: 'card',
         card: {
           url: 'https://www.facebook.com/page/posts/1',
-          imageUrls: Array.from({ length: 5 }, (_, index) => `https://cdn.example/${index}.jpg`),
+          imageUrls: Array.from({ length: 11 }, (_, index) => `https://cdn.example/${index}.jpg`),
         },
         sourceUrl: 'https://www.facebook.com/page/posts/1',
       },
@@ -428,13 +457,13 @@ describe('renderPreview', () => {
       { announcement: 'Source announcement' },
     );
     expect(replies).toHaveLength(2);
-    expect(replies[0]?.content).toBe('Source announcement');
-    expect(replies[1]?.content).toBeUndefined();
+    expect(textsOf(replies[0])[0]).toBe('Source announcement');
+    expect(JSON.stringify(replies[1]?.components)).not.toContain('Source announcement');
   });
 
-  it('keeps every distinct HTTPS image in order across gallery replies', async () => {
+  it('keeps every distinct HTTPS image in order across gallery messages of ten', async () => {
     const { message, replies } = makeMessage();
-    const images = Array.from({ length: 9 }, (_, index) => `https://cdn.example/${index}.jpg`);
+    const images = Array.from({ length: 23 }, (_, index) => `https://cdn.example/${index}.jpg`);
     await renderPreview(
       message,
       {
@@ -451,20 +480,13 @@ describe('renderPreview', () => {
       makeTranslator(),
     );
 
-    expect(replies.map((reply) => reply.embeds?.length)).toEqual([4, 4, 1]);
-    const embeds = replies.flatMap((reply) => reply.embeds ?? []) as {
-      data: { image?: { url: string }; title?: string; color?: number; url?: string };
-    }[];
-    expect(embeds.map((embed) => embed.data.image?.url)).toEqual(images);
-    expect(embeds[0]?.data.title).toBe('Post title');
-    expect(
-      embeds
-        .slice(1)
-        .every((embed) => embed.data.title === undefined && embed.data.color === undefined),
-    ).toBe(true);
-    expect(
-      embeds.every((embed) => embed.data.url === 'https://www.facebook.com/page/posts/1'),
-    ).toBe(true);
+    expect(replies.map((reply) => mediaOf(reply).length)).toEqual([10, 10, 3]);
+    expect(replies.flatMap(mediaOf)).toEqual(images);
+    expect(JSON.stringify(replies[0]?.components)).toContain('Post title');
+    expect(JSON.stringify(replies.slice(1).map((reply) => reply.components))).not.toContain(
+      'Post title',
+    );
+    expect(replies.every((reply) => reply.flags === MessageFlags.IsComponentsV2)).toBe(true);
     expect(replies.every((reply) => reply.allowedMentions?.parse.length === 0)).toBe(true);
   });
 
@@ -482,9 +504,9 @@ describe('renderPreview', () => {
       { downloadVideo: vi.fn().mockResolvedValue(null) },
     );
 
-    expect(replies.map((reply) => reply.embeds?.length)).toEqual([4, 1]);
-    expect(replies[0]?.content).toBe('<https://proxy.example/reel/1>');
-    expect(replies[1]?.content).toBeUndefined();
+    expect(replies).toHaveLength(1);
+    expect(mediaOf(replies[0])).toEqual(imageUrls);
+    expect(textsOf(replies[0]).at(-1)).toBe('<https://proxy.example/reel/1>');
   });
 });
 
@@ -766,12 +788,10 @@ describe('renderPreview X post', () => {
     variants: [{ url: `https://video.twimg.com/${name}.mp4`, bitrate: 400_000 }],
     ...extra,
   });
-  const galleryUrls = (reply: { components?: unknown[] } | undefined): string[] => {
-    const container = (reply?.components?.[0] as ContainerBuilder).toJSON();
-    const gallery = container.components.at(-1);
-    return gallery?.type === ComponentType.MediaGallery
-      ? gallery.items.map((item) => item.media.url)
-      : [];
+  const galleryUrls = mediaOf;
+  const headerOf = (reply: ReplyPayload | undefined): string => {
+    const [first] = containerOf(reply).components;
+    return first?.type === ComponentType.TextDisplay ? first.content : '';
   };
   const uploadRejection = (): DiscordAPIError =>
     new DiscordAPIError(
@@ -783,14 +803,17 @@ describe('renderPreview X post', () => {
       {},
     );
 
-  it('replies with embeds for a post without video', async () => {
+  it('replies with a Components V2 card for a post without video', async () => {
     const { message, replies } = makeMessage();
     const downloadVideo = vi.fn();
     await renderPreview(message, post(), makeTranslator(), { downloadVideo });
     expect(downloadVideo).not.toHaveBeenCalled();
     expect(replies).toHaveLength(1);
-    expect(replies[0]?.embeds).toHaveLength(1);
-    expect(replies[0]?.flags).toBeUndefined();
+    expect(replies[0]?.flags).toBe(MessageFlags.IsComponentsV2);
+    expect(replies[0]?.embeds).toBeUndefined();
+    expect(replies[0]?.files).toBeUndefined();
+    expect(galleryUrls(replies[0])).toEqual(['https://pbs.twimg.com/1.jpg']);
+    expect(headerOf(replies[0])).not.toContain('post_watch_video');
     expect(replies[0]?.allowedMentions).toEqual({ parse: [] });
   });
 
@@ -873,10 +896,9 @@ describe('renderPreview X post', () => {
       { downloadVideo },
     );
     expect(downloadVideo).not.toHaveBeenCalled();
-    expect(replies[0]?.flags).toBeUndefined();
-    expect((replies[0]?.embeds?.[0] as { data: { image?: { url: string } } }).data.image?.url).toBe(
-      'https://gif.example/g.gif',
-    );
+    expect(replies[0]?.files).toBeUndefined();
+    expect(galleryUrls(replies[0])).toEqual(['https://gif.example/g.gif']);
+    expect(headerOf(replies[0])).not.toContain('post_watch_video');
   });
 
   it('tries the next encoding when a download fails', async () => {
@@ -894,7 +916,7 @@ describe('renderPreview X post', () => {
     expect(replies[0]?.flags).toBe(MessageFlags.IsComponentsV2);
   });
 
-  it('tries the next encoding after an upload rejection, then falls back to embeds', async () => {
+  it('tries the next encoding after an upload rejection, then falls back to thumbnails', async () => {
     const { message, replies } = makeMessage();
     vi.mocked(message.reply)
       .mockRejectedValueOnce(uploadRejection())
@@ -903,13 +925,16 @@ describe('renderPreview X post', () => {
     await renderPreview(message, post(true), makeTranslator(), { downloadVideo });
     expect(downloadVideo).toHaveBeenCalledTimes(2);
     expect(message.reply).toHaveBeenCalledTimes(3);
-    expect(replies[0]?.flags).toBeUndefined();
     expect(replies[0]?.files).toBeUndefined();
-    // The photo and the video's thumbnail.
-    expect(replies[0]?.embeds).toHaveLength(2);
+    // The photo and the video's thumbnail, with a link to watch the video.
+    expect(galleryUrls(replies[0])).toEqual([
+      'https://pbs.twimg.com/1.jpg',
+      'https://pbs.twimg.com/t.jpg',
+    ]);
+    expect(headerOf(replies[0])).toContain('post_watch_video');
   });
 
-  it('falls back to embeds when no encoding fits the upload cap', async () => {
+  it('falls back to thumbnails when no encoding fits the upload cap', async () => {
     const { message, replies } = makeMessage();
     const downloadVideo = vi.fn();
     await renderPreview(message, post(true), makeTranslator(), {
@@ -917,9 +942,10 @@ describe('renderPreview X post', () => {
       maxVideoBytes: 1000,
     });
     expect(downloadVideo).not.toHaveBeenCalled();
-    expect(
-      (replies[0]?.embeds as { data: { image?: { url: string } } }[]).map((e) => e.data.image?.url),
-    ).toEqual(['https://pbs.twimg.com/1.jpg', 'https://pbs.twimg.com/t.jpg']);
+    expect(galleryUrls(replies[0])).toEqual([
+      'https://pbs.twimg.com/1.jpg',
+      'https://pbs.twimg.com/t.jpg',
+    ]);
   });
 
   it('rethrows a reply failure that is not an upload rejection', async () => {
