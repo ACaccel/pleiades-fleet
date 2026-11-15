@@ -169,4 +169,12 @@ describe('pickVideoVariants', () => {
   it('returns nothing when no encoding fits', () => {
     expect(pickVideoVariants(video, 100_000)).toEqual([]);
   });
+
+  it('leaves an encoding without a bitrate to the download cap', () => {
+    const gif = {
+      durationSeconds: 0,
+      variants: [{ url: 'https://v/gif.mp4', bitrate: 0 }],
+    };
+    expect(pickVideoVariants(gif, 100_000).map((v) => v.url)).toEqual(['https://v/gif.mp4']);
+  });
 });

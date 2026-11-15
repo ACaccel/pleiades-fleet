@@ -170,8 +170,8 @@ export const buildPostContainer = (
 /**
  * The encodings worth downloading, best first: those whose estimated size
  * (bitrate × duration) fits under `maxBytes`, at most
- * {@link MAX_VIDEO_ATTEMPTS}. The downloader still enforces the real cap.
- * Exported for tests.
+ * {@link MAX_VIDEO_ATTEMPTS}. An unreported bitrate (0) always qualifies;
+ * the downloader still enforces the real cap. Exported for tests.
  */
 export const pickVideoVariants = (
   video: NonNullable<SocialPost['video']>,

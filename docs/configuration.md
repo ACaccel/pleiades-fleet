@@ -292,8 +292,9 @@ API and shown as a custom card: author, text, quoted post, up to four photos,
 reply/repost/like/view counts and post time. Video posts still use a proxy link
 when a proxy serves a playable video, so Discord plays it at full quality. When
 none does, the bot uploads the largest MP4 encoding estimated to fit
-`maxVideoBytes` inside a Components V2 card; failing that, the card shows the
-video thumbnail and a link. Posts the API marks possibly sensitive, and every
+`maxVideoBytes` inside a Components V2 card; a GIF, which X serves as an MP4
+without a bitrate, is checked against the cap only while downloading. Failing
+that, the card shows the video thumbnail and a link. Posts the API marks possibly sensitive, and every
 post while no API answers, use a proxy link as before.
 
 When metadata includes a supported direct video URL, the bot downloads it and

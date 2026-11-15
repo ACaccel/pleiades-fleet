@@ -88,7 +88,10 @@ export interface PreviewCard {
 /** One downloadable encoding of a post's video. */
 export interface PostVideoVariant {
   readonly url: string;
-  /** Bits per second; with the duration it estimates the file size before download. */
+  /**
+   * Bits per second; with the duration it estimates the file size before
+   * download. 0 when unreported (X GIFs), leaving the download cap to bound it.
+   */
   readonly bitrate: number;
 }
 

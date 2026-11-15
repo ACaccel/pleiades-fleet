@@ -84,6 +84,32 @@ describe('parseXStatus', () => {
     });
   });
 
+  it('keeps a GIF encoding that reports no bitrate', () => {
+    const parsed = parseXStatus(
+      body({
+        media: {
+          videos: [
+            {
+              type: 'gif',
+              thumbnail_url: 'https://pbs.twimg.com/tweet_video_thumb/g.jpg',
+              duration: 0,
+              formats: [
+                {
+                  url: 'https://video.twimg.com/tweet_video/g.mp4',
+                  container: 'mp4',
+                  bitrate: 0,
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+    expect(parsed?.post.video?.variants).toEqual([
+      { url: 'https://video.twimg.com/tweet_video/g.mp4', bitrate: 0 },
+    ]);
+  });
+
   it('maps a quoted post', () => {
     const parsed = parseXStatus(
       body({

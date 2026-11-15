@@ -99,10 +99,11 @@ export interface XStatus {
 
 const toPost = (status: Status): SocialPost => {
   const firstVideo = status.media?.videos?.[0];
+  // X reports GIF encodings with bitrate 0; they stay uploadable, ranked last.
   const variants = (firstVideo?.formats ?? [])
     .flatMap((format) =>
-      format.container === 'mp4' && format.bitrate !== undefined && format.bitrate > 0
-        ? [{ url: format.url, bitrate: format.bitrate }]
+      format.container === 'mp4'
+        ? [{ url: format.url, bitrate: Math.max(format.bitrate ?? 0, 0) }]
         : [],
     )
     .sort((a, b) => b.bitrate - a.bitrate);
