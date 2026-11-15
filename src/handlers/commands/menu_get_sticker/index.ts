@@ -28,7 +28,8 @@ export default class menu_get_sticker extends Command {
       bot.translator?.t(`replies:menu_get_sticker.${key}`, params) ?? '';
     try {
       const message = interaction.targetMessage;
-      const items = collectMedia(message.stickers, message.content ?? '');
+      // A forwarded message carries its media only in its snapshots.
+      const items = collectMedia([message, ...message.messageSnapshots.values()]);
       if (items.length === 0) {
         await interaction.editReply({ content: t('not_found') });
         return;

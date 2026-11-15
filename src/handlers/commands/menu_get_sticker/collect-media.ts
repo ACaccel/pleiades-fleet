@@ -24,31 +24,45 @@ const withOriginalSize = (url: string): string => {
   return sized.toString();
 };
 
-/** Stickers first, then each distinct custom emoji in the text, in order of appearance. */
-export const collectMedia = (
-  stickers: Collection<string, Sticker>,
-  content: string,
-): MediaItem[] => {
-  const items: MediaItem[] = [...stickers.values()].map((sticker) => {
-    const previewable = sticker.format !== StickerFormatType.Lottie;
-    return {
-      kind: 'sticker',
-      name: sticker.name,
-      url: previewable ? withOriginalSize(sticker.url) : sticker.url,
-      previewable,
-    };
-  });
-  const seen = new Set<string>();
-  for (const [, animated, name, id] of content.matchAll(CUSTOM_EMOJI)) {
-    if (id === undefined || name === undefined || seen.has(id)) continue;
-    seen.add(id);
-    const extension = animated === 'a' ? 'gif' : 'png';
-    items.push({
-      kind: 'emoji',
-      name,
-      url: withOriginalSize(`https://cdn.discordapp.com/emojis/${id}.${extension}`),
-      previewable: true,
-    });
+/** The parts of a message, or of a forwarded message snapshot, that can carry media. */
+export interface MediaSource {
+  readonly stickers: Collection<string, Sticker>;
+  readonly content: string;
+}
+
+/**
+ * Stickers first, then each distinct custom emoji in the text, in order of
+ * appearance. Sources are read in order, so a message's own media precedes
+ * the media of the messages it forwards; repeats across sources are dropped.
+ */
+export const collectMedia = (sources: readonly MediaSource[]): MediaItem[] => {
+  const stickerIds = new Set<string>();
+  const stickers: MediaItem[] = [];
+  const emojiIds = new Set<string>();
+  const emojis: MediaItem[] = [];
+  for (const source of sources) {
+    for (const sticker of source.stickers.values()) {
+      if (stickerIds.has(sticker.id)) continue;
+      stickerIds.add(sticker.id);
+      const previewable = sticker.format !== StickerFormatType.Lottie;
+      stickers.push({
+        kind: 'sticker',
+        name: sticker.name,
+        url: previewable ? withOriginalSize(sticker.url) : sticker.url,
+        previewable,
+      });
+    }
+    for (const [, animated, name, id] of source.content.matchAll(CUSTOM_EMOJI)) {
+      if (id === undefined || name === undefined || emojiIds.has(id)) continue;
+      emojiIds.add(id);
+      const extension = animated === 'a' ? 'gif' : 'png';
+      emojis.push({
+        kind: 'emoji',
+        name,
+        url: withOriginalSize(`https://cdn.discordapp.com/emojis/${id}.${extension}`),
+        previewable: true,
+      });
+    }
   }
-  return items;
+  return [...stickers, ...emojis];
 };
