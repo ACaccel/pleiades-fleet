@@ -253,7 +253,7 @@ Components V2 card with all post metadata above every media item, uploaded video
 sharing one byte budget per message. Custom cards use containers rather than
 classic embeds because Discord renders them nearly twice as wide.
 Feed platforms return neutral single-message previews; each account pass shares post preparation
-across its destinations. Feed announcements and media use one send, and preview
+across its destinations. Feed announcements and media use one send, the announcement as text above the card, and preview
 failure falls back to the existing proxy announcement. Feed configuration remains
 independent of the message-preview plugin.
 Bahamut feeds distinguish board new-topic streams from thread new-floor streams.

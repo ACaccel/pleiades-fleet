@@ -16,6 +16,7 @@ import {
   type SendableChannels,
   type MessageCreateOptions,
   type ContainerBuilder,
+  type TextDisplayBuilder,
 } from 'discord.js';
 
 import { loadCatalogResources } from '../../../../src/core/i18n/catalog-loader';
@@ -158,11 +159,10 @@ describe('sendFeedPost', () => {
     const payload = send.mock.calls[0]![0];
     expect(payload.flags).toBe(MessageFlags.IsComponentsV2);
     expect(payload.content).toBeUndefined();
-    const container = (payload.components?.[0] as ContainerBuilder).toJSON();
-    expect(container.components[0]).toEqual({
-      type: ComponentType.TextDisplay,
-      content: announcement,
-    });
+    const [top, card] = payload.components as [TextDisplayBuilder, ContainerBuilder];
+    expect(top.toJSON()).toEqual({ type: ComponentType.TextDisplay, content: announcement });
+    const container = card.toJSON();
+    expect(JSON.stringify(container)).not.toContain(announcement);
     expect(JSON.stringify(container)).toContain('New post @everyone');
     expect(container.components.at(-1)).toMatchObject({
       type: ComponentType.MediaGallery,
@@ -190,7 +190,7 @@ describe('sendFeedPost', () => {
     });
   });
 
-  it('includes the announcement inside an uploaded-video V2 card without content', async () => {
+  it('sends the announcement above an uploaded-video V2 card without content', async () => {
     const send = vi
       .fn<(payload: MessageCreateOptions) => Promise<undefined>>()
       .mockResolvedValue(undefined);
@@ -206,11 +206,10 @@ describe('sendFeedPost', () => {
     expect(payload.flags).toBe(MessageFlags.IsComponentsV2);
     expect(payload.content).toBeUndefined();
     expect(payload.files).toHaveLength(1);
-    const container = (payload.components?.[0] as ContainerBuilder).toJSON();
-    expect(container.components[0]).toEqual({
-      type: ComponentType.TextDisplay,
-      content: announcement,
-    });
+    const [top, card] = payload.components as [TextDisplayBuilder, ContainerBuilder];
+    expect(top.toJSON()).toEqual({ type: ComponentType.TextDisplay, content: announcement });
+    const container = card.toJSON();
+    expect(JSON.stringify(container)).not.toContain(announcement);
     expect(container.components.at(-1)).toMatchObject({
       type: ComponentType.MediaGallery,
       items: [{ media: { url: 'attachment://x-media-1.mp4' } }],
@@ -230,11 +229,10 @@ describe('sendFeedPost', () => {
     expect(send).toHaveBeenCalledTimes(1);
     const payload = send.mock.calls[0]![0];
     expect(payload.files).toBeUndefined();
-    const container = (payload.components?.[0] as ContainerBuilder).toJSON();
-    expect(container.components[0]).toEqual({
-      type: ComponentType.TextDisplay,
-      content: announcement,
-    });
+    const [top, card] = payload.components as [TextDisplayBuilder, ContainerBuilder];
+    expect(top.toJSON()).toEqual({ type: ComponentType.TextDisplay, content: announcement });
+    const container = card.toJSON();
+    expect(JSON.stringify(container)).not.toContain(announcement);
     expect(container.components.at(-1)).toMatchObject({
       type: ComponentType.MediaGallery,
       items: [{ media: { url: 'https://pbs.twimg.com/thumb.jpg' } }],

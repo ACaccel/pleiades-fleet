@@ -97,11 +97,6 @@ describe('buildPostContainer', () => {
     });
   });
 
-  it('leads with the announcement', () => {
-    const json = buildPostContainer(post(), translator, [], { announcement: 'New post' }).toJSON();
-    expect(json.components[0]).toEqual({ type: ComponentType.TextDisplay, content: 'New post' });
-  });
-
   it('puts the text beside the avatar, then the counts, then the media last', () => {
     const json = buildPostContainer(post(), translator, [
       'https://pbs.twimg.com/1.jpg',

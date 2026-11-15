@@ -62,7 +62,15 @@ const makeMessage = (): { message: Message; replies: ReplyPayload[] } => {
 
 /** The card container of a Components V2 reply. */
 const containerOf = (reply: ReplyPayload | undefined) =>
-  (reply?.components?.[0] as ContainerBuilder).toJSON();
+  (reply?.components?.at(-1) as ContainerBuilder).toJSON();
+
+/** The message text above a reply's card, if any. */
+const announcementOf = (reply: ReplyPayload | undefined): string | undefined => {
+  const components = reply?.components ?? [];
+  if (components.length < 2) return undefined;
+  const top = (components[0] as { toJSON: () => { type: number; content?: string } }).toJSON();
+  return top.type === ComponentType.TextDisplay ? top.content : undefined;
+};
 
 /** Gallery item URLs of a reply: its card's last gallery, or a bare gallery message. */
 const mediaOf = (reply: ReplyPayload | undefined): string[] => {
@@ -278,7 +286,7 @@ describe('renderPreview', () => {
   });
 
   it.each([true, false])(
-    'retains an optional announcement with Facebook video delivery (%s)',
+    'sends an optional announcement above the Facebook video card (%s)',
     async (uploadable) => {
       const { message, replies } = makeMessage();
       await renderPreview(message, facebookResult, makeTranslator(), {
@@ -290,19 +298,13 @@ describe('renderPreview', () => {
           ),
       });
       expect(replies).toHaveLength(1);
+      expect(replies[0]?.content).toBeUndefined();
+      expect(announcementOf(replies[0])).toBe('Source announcement');
+      expect(textsOf(replies[0])).not.toContain('Source announcement');
       if (uploadable) {
-        expect(replies[0]?.content).toBeUndefined();
-        const container = (replies[0]?.components?.[0] as ContainerBuilder).toJSON();
-        expect(container.components[0]).toEqual({
-          type: ComponentType.TextDisplay,
-          content: 'Source announcement',
-        });
-        expect(container.components.at(-1)?.type).toBe(ComponentType.MediaGallery);
+        expect(containerOf(replies[0]).components.at(-1)?.type).toBe(ComponentType.MediaGallery);
       } else {
-        expect(replies[0]?.content).toBeUndefined();
-        const texts = textsOf(replies[0]);
-        expect(texts[0]).toBe('Source announcement');
-        expect(texts.at(-1)).toBe('<https://proxy.example/reel/1>');
+        expect(textsOf(replies[0]).at(-1)).toBe('<https://proxy.example/reel/1>');
       }
     },
   );
@@ -441,7 +443,7 @@ describe('renderPreview', () => {
     expect(payload?.allowedMentions).toEqual({ parse: [] });
   });
 
-  it('retains an optional announcement only in the card, not a follow-up gallery', async () => {
+  it('sends an optional announcement above the card, not with a follow-up gallery', async () => {
     const { message, replies } = makeMessage();
     await renderPreview(
       message,
@@ -457,7 +459,7 @@ describe('renderPreview', () => {
       { announcement: 'Source announcement' },
     );
     expect(replies).toHaveLength(2);
-    expect(textsOf(replies[0])[0]).toBe('Source announcement');
+    expect(announcementOf(replies[0])).toBe('Source announcement');
     expect(JSON.stringify(replies[1]?.components)).not.toContain('Source announcement');
   });
 

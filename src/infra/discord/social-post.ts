@@ -109,9 +109,8 @@ export const buildPostContainer = (
   post: SocialPost,
   translator: Translator,
   mediaUrls: readonly string[],
-  options: { readonly announcement?: string; readonly linkVideo?: boolean } = {},
+  options: { readonly linkVideo?: boolean } = {},
 ): ContainerBuilder => {
-  const { announcement } = options;
   const heading = `**[${escapeText(post.author.name)}](${post.author.url})** @${post.author.handle}`;
   let body = postBody(post, translator);
   if (options.linkVideo === true) {
@@ -130,9 +129,6 @@ export const buildPostContainer = (
     .join(' · ');
 
   const container = new ContainerBuilder().setAccentColor(SOCIAL_COLORS.x);
-  if (announcement !== undefined) {
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(announcement));
-  }
   const avatar = post.author.avatarUrl;
   if (isHttps(avatar)) {
     container.addSectionComponents(

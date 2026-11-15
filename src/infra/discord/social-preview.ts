@@ -124,27 +124,26 @@ const isHttps = (url: string): boolean => url.startsWith('https://');
  * A card as one Components V2 container: its metadata as text, then
  * `note` (a fallback link), then up to {@link MAX_GALLERY_ITEMS} media
  * items. A container renders far wider than a classic embed, so media
- * shows larger and less cropped. `announcement` leads, inside the card.
+ * shows larger and less cropped.
  */
 const buildCardContainer = (
   card: PreviewCard,
   translator: Translator,
   mediaUrls: readonly string[],
-  options: { readonly announcement?: string; readonly note?: string } = {},
+  note?: string,
 ): ContainerBuilder => {
   const embed = buildCardEmbed({ ...card, imageUrl: undefined }, translator).toJSON();
   const escapeText = (text: string): string =>
     escapeMarkdown(text, { heading: true, maskedLink: true });
   const container = new ContainerBuilder().setAccentColor(embed.color ?? EMBED_COLORS.info);
   const text = [
-    options.announcement,
     embed.author === undefined ? undefined : `**${escapeText(embed.author.name)}**`,
     embed.title === undefined ? undefined : `**[${escapeText(embed.title)}](${card.url})**`,
     embed.description === undefined ? undefined : escapeText(embed.description),
     embed.footer === undefined ? undefined : `-# ${escapeText(embed.footer.text)}`,
   ].filter((part): part is string => part !== undefined && part.length > 0);
   if (embed.title === undefined) text.push(`<${card.url}>`);
-  if (options.note !== undefined) text.push(options.note);
+  if (note !== undefined) text.push(note);
   for (const content of text) {
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
   }
@@ -154,7 +153,11 @@ const buildCardContainer = (
 };
 
 export interface PreviewRenderOptions {
-  /** Localized feed announcement, included in the same delivery as the preview. */
+  /**
+   * Localized feed announcement, sent in the same message as the preview:
+   * as plain text above the card, so it reads as the bot's own message
+   * rather than part of the post.
+   */
   readonly announcement?: string;
   readonly maxVideoBytes?: number;
   readonly videoTimeoutMs?: number;
@@ -165,6 +168,13 @@ export interface PreviewRenderOptions {
   ) => Promise<{ data: Buffer; name: string } | null>;
 }
 
+/** The announcement as message text above `card`, both in one Components V2 message. */
+const withAnnouncement = (
+  card: ContainerBuilder,
+  announcement: string | undefined,
+): (ContainerBuilder | TextDisplayBuilder)[] =>
+  announcement === undefined ? [card] : [new TextDisplayBuilder().setContent(announcement), card];
+
 /**
  * Send a card with every distinct HTTPS image: the first gallery inside the
  * card, the rest in follow-up gallery messages of {@link MAX_GALLERY_ITEMS}.
@@ -173,14 +183,15 @@ const replyWithCard = async (
   send: PreviewSender,
   card: PreviewCard,
   translator: Translator,
-  options: { readonly announcement?: string; readonly note?: string },
+  announcement: string | undefined,
+  note?: string,
 ): Promise<void> => {
   const images = [
     ...new Set([...(card.imageUrl ? [card.imageUrl] : []), ...(card.imageUrls ?? [])]),
   ].filter(isHttps);
   await send({
     flags: MessageFlags.IsComponentsV2,
-    components: [buildCardContainer(card, translator, images, options)],
+    components: withAnnouncement(buildCardContainer(card, translator, images, note), announcement),
     allowedMentions: NO_MENTIONS,
   });
   for (let offset = MAX_GALLERY_ITEMS; offset < images.length; offset += MAX_GALLERY_ITEMS) {
@@ -264,12 +275,10 @@ const renderPost = async (
   const reply = (urls: readonly string[], files: AttachmentBuilder[], linkVideo: boolean) =>
     send({
       flags: MessageFlags.IsComponentsV2,
-      components: [
-        buildPostContainer(post, translator, urls, {
-          linkVideo,
-          ...(options.announcement === undefined ? {} : { announcement: options.announcement }),
-        }),
-      ],
+      components: withAnnouncement(
+        buildPostContainer(post, translator, urls, { linkVideo }),
+        options.announcement,
+      ),
       ...(files.length === 0 ? {} : { files }),
       allowedMentions: NO_MENTIONS,
     });
@@ -322,14 +331,10 @@ export const renderPreviewTo = async (
       try {
         await send({
           flags: MessageFlags.IsComponentsV2,
-          components: [
-            buildCardContainer(
-              result.card,
-              translator,
-              [...images, `attachment://${video.name}`],
-              options.announcement === undefined ? {} : { announcement: options.announcement },
-            ),
-          ],
+          components: withAnnouncement(
+            buildCardContainer(result.card, translator, [...images, `attachment://${video.name}`]),
+            options.announcement,
+          ),
           files: [new AttachmentBuilder(video.data, { name: video.name })],
           allowedMentions: NO_MENTIONS,
         });
@@ -338,16 +343,14 @@ export const renderPreviewTo = async (
         if (!isUploadRejection(error)) throw error;
       }
     }
-    await replyWithCard(send, result.card, translator, {
-      ...(options.announcement === undefined ? {} : { announcement: options.announcement }),
-      note: `<${result.media.fallbackUrl}>`,
-    });
+    await replyWithCard(
+      send,
+      result.card,
+      translator,
+      options.announcement,
+      `<${result.media.fallbackUrl}>`,
+    );
     return;
   }
-  await replyWithCard(
-    send,
-    result.card,
-    translator,
-    options.announcement === undefined ? {} : { announcement: options.announcement },
-  );
+  await replyWithCard(send, result.card, translator, options.announcement);
 };

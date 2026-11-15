@@ -432,7 +432,8 @@ video uses a proxy, and sensitive posts or failed status API reads use the proxy
 Videos the card shows are uploaded within a bounded budget (8 MiB per message,
 15 seconds per download); one that does not fit shows its thumbnail and the card
 links the source. The localized announcement and preview are sent together as
-one message, with the announcement leading inside the card.
+one message: the announcement as plain text above the card, so the card holds
+only the post.
 
 Feeds use their own `social_feed.platforms.x.apiBaseUrl`, `timeoutMs`,
 `embedProxyHost` and optional `gifBaseUrls` (looping GIFs, as
