@@ -19,7 +19,11 @@ import {
   buildCardEmbed,
 } from '../../../../src/plugins/social-link-preview/internal/render';
 import type { Translator } from '../../../../src/core/i18n';
-import type { RenderablePreviewResult } from '../../../../src/infra/link-preview';
+import type {
+  PostClip,
+  PostMedia,
+  RenderablePreviewResult,
+} from '../../../../src/infra/link-preview';
 import { buildMessage } from '../../../fixtures/discord/message-builder';
 import { echoTranslator } from '../../../fixtures/runtime';
 
@@ -118,6 +122,30 @@ describe('renderPreview', () => {
       expect(replies[0]?.content).toBeUndefined();
     },
   );
+
+  it("keeps a carousel card's images ahead of its uploaded video", async () => {
+    const { message, replies } = makeMessage();
+    const downloadVideo = vi.fn().mockResolvedValue({ data: Buffer.from('v'), name: 'p.mp4' });
+    if (facebookResult.kind !== 'card') throw new Error('expected a card');
+    const imageUrls = Array.from({ length: 12 }, (_, i) => `https://cdn.example/${i}.jpg`);
+    await renderPreview(
+      message,
+      {
+        ...facebookResult,
+        card: { ...facebookResult.card, imageUrls: ['http://insecure/x.jpg', ...imageUrls] },
+      },
+      makeTranslator(),
+      { downloadVideo },
+    );
+    const container = (replies[0]?.components?.[0] as ContainerBuilder).toJSON();
+    const gallery = container.components.at(-1);
+    if (gallery?.type !== ComponentType.MediaGallery) throw new Error('expected a gallery');
+    // Discord caps a gallery at ten items: nine images, then the video.
+    expect(gallery.items.map((item) => item.media.url)).toEqual([
+      ...imageUrls.slice(0, 9),
+      'attachment://p.mp4',
+    ]);
+  });
 
   it.each(['uploaded', 'unavailable', 'rejected', 'disabled'] as const)(
     'renders a Threads video card when attachment delivery is %s',
@@ -707,22 +735,44 @@ describe('renderPreview X post', () => {
       text: 'hello',
       createdAt: 0,
       author: { name: 'NASA', handle: 'NASA', url: 'https://x.com/NASA' },
-      images: ['https://pbs.twimg.com/1.jpg'],
+      media: [
+        { kind: 'photo', url: 'https://pbs.twimg.com/1.jpg' },
+        ...(video === true
+          ? [
+              {
+                kind: 'video' as const,
+                thumbnailUrl: 'https://pbs.twimg.com/t.jpg',
+                durationSeconds: 10,
+                variants: [
+                  { url: 'https://video.twimg.com/high.mp4', bitrate: 2_000_000 },
+                  { url: 'https://video.twimg.com/low.mp4', bitrate: 500_000 },
+                ],
+              },
+            ]
+          : []),
+      ],
       stats: {},
-      ...(video === true
-        ? {
-            video: {
-              thumbnailUrl: 'https://pbs.twimg.com/t.jpg',
-              durationSeconds: 10,
-              variants: [
-                { url: 'https://video.twimg.com/high.mp4', bitrate: 2_000_000 },
-                { url: 'https://video.twimg.com/low.mp4', bitrate: 500_000 },
-              ],
-            },
-          }
-        : {}),
     },
   });
+  const withMedia = (media: readonly PostMedia[]): RenderablePreviewResult => {
+    const base = post();
+    if (base.kind !== 'post') throw new Error('expected a post');
+    return { ...base, post: { ...base.post, media } };
+  };
+  const clip = (kind: 'video' | 'gif', name: string, extra: Partial<PostClip> = {}): PostClip => ({
+    kind,
+    thumbnailUrl: `https://pbs.twimg.com/${name}.jpg`,
+    durationSeconds: 10,
+    variants: [{ url: `https://video.twimg.com/${name}.mp4`, bitrate: 400_000 }],
+    ...extra,
+  });
+  const galleryUrls = (reply: { components?: unknown[] } | undefined): string[] => {
+    const container = (reply?.components?.[0] as ContainerBuilder).toJSON();
+    const gallery = container.components.at(-1);
+    return gallery?.type === ComponentType.MediaGallery
+      ? gallery.items.map((item) => item.media.url)
+      : [];
+  };
   const uploadRejection = (): DiscordAPIError =>
     new DiscordAPIError(
       { code: 40005, message: 'Request entity too large' },
@@ -758,8 +808,75 @@ describe('renderPreview X post', () => {
     expect(replies[0]?.flags).toBe(MessageFlags.IsComponentsV2);
     expect(replies[0]?.components).toHaveLength(1);
     expect(replies[0]?.embeds).toBeUndefined();
-    expect(replies[0]?.files?.[0]?.name).toBe('x-video.mp4');
+    expect(replies[0]?.files?.[0]?.name).toBe('x-media-2.mp4');
     expect(replies[0]?.files?.[0]?.attachment).toEqual(data);
+    expect(galleryUrls(replies[0])).toEqual([
+      'https://pbs.twimg.com/1.jpg',
+      'attachment://x-media-2.mp4',
+    ]);
+  });
+
+  it('uploads every clip within one shared byte budget, in post order', async () => {
+    const { message, replies } = makeMessage();
+    const downloadVideo = vi
+      .fn()
+      .mockResolvedValueOnce({ data: Buffer.alloc(600_000), name: 'facebook.mp4' })
+      .mockResolvedValueOnce({ data: Buffer.alloc(300_000), name: 'facebook.mp4' });
+    await renderPreview(
+      message,
+      withMedia([
+        clip('video', 'a'),
+        { kind: 'photo', url: 'https://pbs.twimg.com/p.jpg' },
+        clip('gif', 'b', { durationSeconds: 0 }),
+      ]),
+      makeTranslator(),
+      { downloadVideo, maxVideoBytes: 1_000_000 },
+    );
+    expect(downloadVideo.mock.calls).toEqual([
+      ['https://video.twimg.com/a.mp4', 1_000_000, 15_000],
+      ['https://video.twimg.com/b.mp4', 400_000, 15_000],
+    ]);
+    expect(replies[0]?.files?.map((file) => file.name)).toEqual(['x-media-1.mp4', 'x-media-3.mp4']);
+    expect(galleryUrls(replies[0])).toEqual([
+      'attachment://x-media-1.mp4',
+      'https://pbs.twimg.com/p.jpg',
+      'attachment://x-media-3.mp4',
+    ]);
+  });
+
+  it('shows a clip that no longer fits the budget as its thumbnail', async () => {
+    const { message, replies } = makeMessage();
+    const downloadVideo = vi
+      .fn()
+      .mockResolvedValue({ data: Buffer.alloc(900_000), name: 'facebook.mp4' });
+    await renderPreview(
+      message,
+      withMedia([clip('video', 'a', { durationSeconds: 1 }), clip('video', 'b')]),
+      makeTranslator(),
+      { downloadVideo, maxVideoBytes: 1_000_000 },
+    );
+    // 100 KB remain; b's estimate (500 KB) exceeds it, so b is not downloaded.
+    expect(downloadVideo).toHaveBeenCalledOnce();
+    expect(galleryUrls(replies[0])).toEqual([
+      'attachment://x-media-1.mp4',
+      'https://pbs.twimg.com/b.jpg',
+    ]);
+  });
+
+  it('links an animated GIF instead of uploading it', async () => {
+    const { message, replies } = makeMessage();
+    const downloadVideo = vi.fn();
+    await renderPreview(
+      message,
+      withMedia([clip('gif', 'g', { animationUrl: 'https://gif.example/g.gif' })]),
+      makeTranslator(),
+      { downloadVideo },
+    );
+    expect(downloadVideo).not.toHaveBeenCalled();
+    expect(replies[0]?.flags).toBeUndefined();
+    expect((replies[0]?.embeds?.[0] as { data: { image?: { url: string } } }).data.image?.url).toBe(
+      'https://gif.example/g.gif',
+    );
   });
 
   it('tries the next encoding when a download fails', async () => {
@@ -788,7 +905,8 @@ describe('renderPreview X post', () => {
     expect(message.reply).toHaveBeenCalledTimes(3);
     expect(replies[0]?.flags).toBeUndefined();
     expect(replies[0]?.files).toBeUndefined();
-    expect(replies[0]?.embeds).toHaveLength(1);
+    // The photo and the video's thumbnail.
+    expect(replies[0]?.embeds).toHaveLength(2);
   });
 
   it('falls back to embeds when no encoding fits the upload cap', async () => {
@@ -799,7 +917,9 @@ describe('renderPreview X post', () => {
       maxVideoBytes: 1000,
     });
     expect(downloadVideo).not.toHaveBeenCalled();
-    expect(replies[0]?.embeds).toHaveLength(1);
+    expect(
+      (replies[0]?.embeds as { data: { image?: { url: string } } }[]).map((e) => e.data.image?.url),
+    ).toEqual(['https://pbs.twimg.com/1.jpg', 'https://pbs.twimg.com/t.jpg']);
   });
 
   it('rethrows a reply failure that is not an upload rejection', async () => {

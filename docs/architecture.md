@@ -244,11 +244,14 @@ serializes each member's quota admission within its process. Per-guild
 counts survive restarts. See [AI configuration](configuration.md#ai-models-and-usage-limits)
 for admin exemptions, fallback behavior and cross-process limits.
 
-The X provider reads posts from a JSON API into a neutral post model and keeps
-the proxy rewrite only for videos a proxy can play. Link previews and X feed
+The X provider reads posts from a JSON API into a neutral post model carrying
+every media item in post order, and keeps the proxy rewrite only for a lone video
+a proxy can play. GIFs become looping images through an optional conversion
+service, confirmed by the provider before use. Link previews and X feed
 subscriptions share this provider and the Discord renderer in
 [`infra/discord/social-preview.ts`](../src/infra/discord/social-preview.ts): classic
-embeds, or a Components V2 card with all post metadata above an uploaded video.
+embeds, or one Components V2 card with all post metadata above every media item
+when videos are uploaded, within one byte budget per message.
 Feed platforms return neutral single-message previews; each account pass shares post preparation
 across its destinations. Feed announcements and media use one send, and preview
 failure falls back to the existing proxy announcement. Feed configuration remains
@@ -311,7 +314,8 @@ reply carries the post text. Facebook-specific parsing maps the proxy's source
 summary to optional engagement counts. Direct videos use a dedicated downloader with the shared host validation and
 bounded DNS resolver, plus address checks, deadlines and a concurrency limit;
 the renderer places all card metadata above the video in one Components V2 message
-for either source and falls back if Discord rejects the upload.
+for either source, keeping a multi-image post's images ahead of the video, and
+falls back if Discord rejects the upload.
 Missing or failed media delivery keeps the card and adds a fallback link. See
 [preview configuration](configuration.md#social-previews-and-feeds) for supported
 media, limits and metadata availability.

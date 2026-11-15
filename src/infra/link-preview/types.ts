@@ -10,8 +10,8 @@
  *     return the first that yields media, so a dead proxy is never posted.
  *   - `card`: OpenGraph data rendered with `EmbedBuilder`, or a Components V2
  *     card with an uploaded video below the metadata (Facebook and Threads).
- *   - `post`: a structured post from a JSON API (X), used for a video post only
- *     when no proxy yields playable video, so the renderer uploads it.
+ *   - `post`: a structured post from a JSON API (X). A post whose only media
+ *     is one video uses a proxy link instead when a proxy plays it.
  *   - `gallery`: a multi-page work (nhentai, wnacg) the consumer turns into
  *     a paged reader; see `./gallery/`.
  *
@@ -95,6 +95,23 @@ export interface PostVideoVariant {
   readonly bitrate: number;
 }
 
+/** A post's video, or a GIF its platform serves as a silent looping MP4. */
+export interface PostClip {
+  readonly kind: 'video' | 'gif';
+  readonly thumbnailUrl?: string;
+  readonly durationSeconds: number;
+  /** MP4 encodings, highest bitrate first. */
+  readonly variants: readonly PostVideoVariant[];
+  /**
+   * Animated GIF rendition of a `gif` clip, already validated. When set the
+   * clip is shown as an image and never downloaded.
+   */
+  readonly animationUrl?: string;
+}
+
+/** One media item of a post. */
+export type PostMedia = { readonly kind: 'photo'; readonly url: string } | PostClip;
+
 /**
  * Neutral, Discord-agnostic social post. Counts are the upstream totals at
  * fetch time; an absent count was not reported and is not shown.
@@ -111,8 +128,8 @@ export interface SocialPost {
     readonly url: string;
     readonly avatarUrl?: string;
   };
-  /** Photo URLs in post order. */
-  readonly images: readonly string[];
+  /** Every photo, video and GIF, in post order. */
+  readonly media: readonly PostMedia[];
   readonly stats: {
     readonly replies?: number;
     readonly reposts?: number;
@@ -124,13 +141,6 @@ export interface SocialPost {
     readonly text: string;
     readonly authorName: string;
     readonly authorHandle: string;
-  };
-  /** The post's first video, when it has one. */
-  readonly video?: {
-    readonly thumbnailUrl?: string;
-    readonly durationSeconds: number;
-    /** MP4 encodings, highest bitrate first. */
-    readonly variants: readonly PostVideoVariant[];
   };
 }
 

@@ -194,13 +194,15 @@ describe('guild social-preview preferences', () => {
                 text: 'post',
                 createdAt: Date.now(),
                 author: { name: 'A', handle: 'a', url: 'https://x.com/a' },
-                images: [],
+                media: [
+                  {
+                    kind: 'video',
+                    thumbnailUrl: 'https://image.example/1.png',
+                    durationSeconds: 1,
+                    variants: [{ url: 'https://video.example/1.mp4', bitrate: 100 }],
+                  },
+                ],
                 stats: {},
-                video: {
-                  thumbnailUrl: 'https://image.example/1.png',
-                  durationSeconds: 1,
-                  variants: [{ url: 'https://video.example/1.mp4', bitrate: 100 }],
-                },
               },
             };
       const downloadVideo = vi.fn(async () => ({ data: Buffer.from('video'), name: 'video.mp4' }));

@@ -25,6 +25,20 @@ const XPlatformConfigSchema = z
      * Text and photo posts use the shared custom-card renderer.
      */
     embedProxyHost: z.string().min(1).default('fxtwitter.com'),
+    /**
+     * GIF conversion service bases for looping X GIFs in feed cards, tried
+     * in order; omit to upload GIFs as MP4. No default: a third-party
+     * service is opted into explicitly.
+     */
+    gifBaseUrls: z
+      .array(
+        z
+          .string()
+          .url()
+          .refine((value) => value.startsWith('https://'), 'gifBaseUrls must use https'),
+      )
+      .nonempty('gifBaseUrls must list at least one conversion base when set')
+      .optional(),
   })
   .strict();
 

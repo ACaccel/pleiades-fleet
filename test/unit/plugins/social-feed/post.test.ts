@@ -128,18 +128,23 @@ describe('sendFeedPost', () => {
     text: 'New post @everyone',
     createdAt: samplePost.createdTimestamp * 1000,
     author: { name: 'Some Account', handle: 'someaccount', url: 'https://x.com/someaccount' },
-    images: ['https://pbs.twimg.com/1.jpg', 'https://pbs.twimg.com/2.jpg'],
+    media: [
+      { kind: 'photo', url: 'https://pbs.twimg.com/1.jpg' },
+      { kind: 'photo', url: 'https://pbs.twimg.com/2.jpg' },
+    ],
     stats: { likes: 12 },
   };
   const announcement = `New post: <${samplePost.url}>`;
   const videoPost: SocialPost = {
     ...socialPost,
-    images: [],
-    video: {
-      durationSeconds: 1,
-      thumbnailUrl: 'https://pbs.twimg.com/thumb.jpg',
-      variants: [{ url: 'https://video.twimg.com/a.mp4', bitrate: 1000 }],
-    },
+    media: [
+      {
+        kind: 'video',
+        durationSeconds: 1,
+        thumbnailUrl: 'https://pbs.twimg.com/thumb.jpg',
+        variants: [{ url: 'https://video.twimg.com/a.mp4', bitrate: 1000 }],
+      },
+    ],
   };
 
   it('sends the announcement and all X photos together', async () => {
@@ -153,9 +158,10 @@ describe('sendFeedPost', () => {
     expect(send).toHaveBeenCalledTimes(1);
     const payload = send.mock.calls[0]![0];
     expect(payload.content).toBe(announcement);
-    expect((payload.embeds as EmbedBuilder[]).map((embed) => embed.data.image?.url)).toEqual(
-      socialPost.images,
-    );
+    expect((payload.embeds as EmbedBuilder[]).map((embed) => embed.data.image?.url)).toEqual([
+      'https://pbs.twimg.com/1.jpg',
+      'https://pbs.twimg.com/2.jpg',
+    ]);
     expect((payload.embeds?.[0] as EmbedBuilder).data.description).toBe(socialPost.text);
     expect(payload.allowedMentions).toEqual({ parse: [] });
   });
@@ -199,7 +205,7 @@ describe('sendFeedPost', () => {
     });
     expect(container.components.at(-1)).toMatchObject({
       type: ComponentType.MediaGallery,
-      items: [{ media: { url: 'attachment://x-video.mp4' } }],
+      items: [{ media: { url: 'attachment://x-media-1.mp4' } }],
     });
     expect(payload.allowedMentions).toEqual({ parse: [] });
   });
@@ -218,7 +224,7 @@ describe('sendFeedPost', () => {
     expect(payload.content).toBe(announcement);
     expect(payload.files).toBeUndefined();
     expect((payload.embeds?.[0] as EmbedBuilder).data.image?.url).toBe(
-      videoPost.video?.thumbnailUrl,
+      'https://pbs.twimg.com/thumb.jpg',
     );
   });
 

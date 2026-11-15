@@ -38,11 +38,18 @@ describe('parseFeedPlatformsConfig', () => {
 
   it('keeps operator overrides', () => {
     const parsed = parseFeedPlatformsConfig({
-      platforms: { x: { apiBaseUrl: 'https://fx.example.invalid', timeoutMs: 3000 } },
+      platforms: {
+        x: {
+          apiBaseUrl: 'https://fx.example.invalid',
+          timeoutMs: 3000,
+          gifBaseUrls: ['https://gif.example.invalid'],
+        },
+      },
     });
 
     expect(parsed.x?.apiBaseUrl).toBe('https://fx.example.invalid');
     expect(parsed.x?.timeoutMs).toBe(3000);
+    expect(parsed.x?.gifBaseUrls).toEqual(['https://gif.example.invalid']);
   });
 
   it.each([
@@ -51,6 +58,8 @@ describe('parseFeedPlatformsConfig', () => {
     ['a fractional timeout', { timeoutMs: 1.5 }],
     ['a timeout above the ceiling', { timeoutMs: 60_000 }],
     ['an empty embedProxyHost', { embedProxyHost: '' }],
+    ['an empty gifBaseUrls list', { gifBaseUrls: [] }],
+    ['a non-https gif base', { gifBaseUrls: ['http://gif.example.invalid'] }],
   ])('rejects %s', (_label, x) => {
     expect(() => parseFeedPlatformsConfig({ platforms: { x } })).toThrow();
   });

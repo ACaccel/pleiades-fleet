@@ -122,6 +122,21 @@ const commonShape = {
     .nonempty('twitterApiBaseUrls must list at least one API base when set')
     .optional(),
   /**
+   * GIF conversion service bases (e.g. `https://gif.fxtwitter.com`), tried
+   * in order, that serve `{base}/tweet_video/{name}.gif` for an X GIF. Set
+   * to show X GIFs as looping GIFs in custom cards; omit to upload them as
+   * MP4. Third-party services, so operator configuration with no default.
+   */
+  twitterGifBaseUrls: z
+    .array(
+      z
+        .string()
+        .url()
+        .refine((value) => value.startsWith('https://'), 'twitterGifBaseUrls must use https'),
+    )
+    .nonempty('twitterGifBaseUrls must list at least one conversion base when set')
+    .optional(),
+  /**
    * Allow-list of enabled providers. Omitted = all providers. Acts as a
    * per-source kill-switch when a proxy service is misbehaving.
    */

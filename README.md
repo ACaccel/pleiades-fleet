@@ -65,8 +65,9 @@ Every bot shares the framework capabilities:
   previews to 100 characters (including `…`, without splitting emoji). Markdown is
   escaped; messages without text use a localized message label.
 - **Social media.** Rich previews for shared links and per-channel subscriptions to
-  social feeds. X links and subscriptions use custom cards for text and photos,
-  proxies for playable videos, and bounded video uploads as a fallback.
+  social feeds. X links and subscriptions use custom cards showing every photo,
+  video and GIF (GIFs loop through an optional conversion service), a proxy for a
+  lone playable video, and bounded video uploads otherwise.
   Facebook uses custom cards with truncated text, complete image galleries,
   video uploads and engagement counts when available; the title links to the post,
   and failed video delivery falls back to a link. Threads also renders custom

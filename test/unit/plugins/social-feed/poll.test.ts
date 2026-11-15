@@ -700,7 +700,7 @@ describe('runFeedPass — failure isolation', () => {
         handle: item.authorAccount,
         url: `https://x.com/${item.authorAccount}`,
       },
-      images: ['https://cdn.example/photo.jpg'],
+      media: [{ kind: 'photo', url: 'https://cdn.example/photo.jpg' }],
       stats: {},
     },
   });

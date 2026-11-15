@@ -6,8 +6,8 @@
  * configuration and tried in order; the first that answers with a valid
  * post wins. The schema validates only what is rendered and passes the
  * rest through, so an upstream field addition cannot fail the parse, and
- * optional counts that are missing or malformed are dropped rather than
- * failing the post. A response that does not carry a post at all is an
+ * optional counts and media items that are missing or malformed are
+ * dropped rather than failing the post. A response that does not carry a post at all is an
  * `INVALID_RESPONSE` on the Err rail, like any transport failure.
  *
  * `possibly_sensitive` is surfaced so the provider can leave such a post to
@@ -19,7 +19,7 @@ import { err, ok, type Result } from '../../core/result';
 
 import { invalidResponseError } from './error-translator';
 import type { OgClient } from './og-client';
-import type { LinkPreviewFailure, SocialPost } from './types';
+import type { LinkPreviewFailure, PostClip, PostMedia, SocialPost } from './types';
 
 const PROVIDER_NAME = 'twitter';
 
@@ -35,31 +35,42 @@ const AuthorSchema = z
   })
   .passthrough();
 
-const VideoSchema = z
+const FormatsSchema = z
+  .array(
+    z
+      .object({
+        url: z.string().url(),
+        container: z.string().optional(),
+        bitrate: z.number().optional(),
+      })
+      .passthrough(),
+  )
+  .catch([]);
+
+const PhotoSchema = z.object({ url: z.string().url() }).passthrough();
+
+const ClipSchema = z
   .object({
+    /** Older API responses list videos without a type; an unknown type drops the item. */
+    type: z.enum(['video', 'gif']).optional(),
     thumbnail_url: z.string().url().optional().catch(undefined),
     duration: z.number().nonnegative().catch(0),
-    formats: z
-      .array(
-        z
-          .object({
-            url: z.string().url(),
-            container: z.string().optional(),
-            bitrate: z.number().optional(),
-          })
-          .passthrough(),
-      )
-      .catch([]),
+    formats: FormatsSchema,
   })
   .passthrough();
 
+/**
+ * Items are kept as unknown so one malformed entry is dropped on its own
+ * instead of failing the whole list.
+ */
+const MediaListSchema = z.array(z.unknown()).optional().catch(undefined);
+
 const MediaSchema = z
   .object({
-    photos: z
-      .array(z.object({ url: z.string().url() }).passthrough())
-      .optional()
-      .catch(undefined),
-    videos: z.array(VideoSchema).optional().catch(undefined),
+    /** Every item in post order; absent from older API responses. */
+    all: MediaListSchema,
+    photos: MediaListSchema,
+    videos: MediaListSchema,
   })
   .passthrough();
 
@@ -97,16 +108,43 @@ export interface XStatus {
   readonly sensitive: boolean;
 }
 
-const toPost = (status: Status): SocialPost => {
-  const firstVideo = status.media?.videos?.[0];
+const toClip = (clip: z.infer<typeof ClipSchema>): PostClip => ({
+  kind: clip.type ?? 'video',
+  ...(clip.thumbnail_url === undefined ? {} : { thumbnailUrl: clip.thumbnail_url }),
+  durationSeconds: clip.duration,
   // X reports GIF encodings with bitrate 0; they stay uploadable, ranked last.
-  const variants = (firstVideo?.formats ?? [])
+  variants: clip.formats
     .flatMap((format) =>
       format.container === 'mp4'
         ? [{ url: format.url, bitrate: Math.max(format.bitrate ?? 0, 0) }]
         : [],
     )
-    .sort((a, b) => b.bitrate - a.bitrate);
+    .sort((a, b) => b.bitrate - a.bitrate),
+});
+
+const toPhoto = (item: unknown): PostMedia[] => {
+  const photo = PhotoSchema.safeParse(item);
+  return photo.success ? [{ kind: 'photo', url: photo.data.url }] : [];
+};
+
+const toClipMedia = (item: unknown): PostMedia[] => {
+  const clip = ClipSchema.safeParse(item);
+  return clip.success ? [toClip(clip.data)] : [];
+};
+
+const isPhotoItem = (item: unknown): boolean =>
+  typeof item === 'object' && item !== null && (item as { type?: unknown }).type === 'photo';
+
+/** Post-order media; without `all`, photos precede videos as older responses list them. */
+const postMedia = (media: z.infer<typeof MediaSchema> | undefined): PostMedia[] => {
+  if (media === undefined) return [];
+  if (media.all !== undefined) {
+    return media.all.flatMap((item) => (isPhotoItem(item) ? toPhoto(item) : toClipMedia(item)));
+  }
+  return [...(media.photos ?? []).flatMap(toPhoto), ...(media.videos ?? []).flatMap(toClipMedia)];
+};
+
+const toPost = (status: Status): SocialPost => {
   const author = status.author;
   return {
     url: status.url,
@@ -118,7 +156,7 @@ const toPost = (status: Status): SocialPost => {
       url: author.url ?? `https://x.com/${author.screen_name}`,
       ...(author.avatar_url === undefined ? {} : { avatarUrl: author.avatar_url }),
     },
-    images: (status.media?.photos ?? []).map((photo) => photo.url),
+    media: postMedia(status.media),
     stats: {
       ...(status.replies === undefined ? {} : { replies: status.replies }),
       ...(status.reposts === undefined ? {} : { reposts: status.reposts }),
@@ -133,17 +171,6 @@ const toPost = (status: Status): SocialPost => {
             text: status.quote.text,
             authorName: status.quote.author.name,
             authorHandle: status.quote.author.screen_name,
-          },
-        }),
-    ...(firstVideo === undefined
-      ? {}
-      : {
-          video: {
-            ...(firstVideo.thumbnail_url === undefined
-              ? {}
-              : { thumbnailUrl: firstVideo.thumbnail_url }),
-            durationSeconds: firstVideo.duration,
-            variants,
           },
         }),
   };

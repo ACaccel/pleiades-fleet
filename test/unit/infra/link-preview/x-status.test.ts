@@ -49,13 +49,16 @@ describe('parseXStatus', () => {
           url: 'https://x.com/NASA',
           avatarUrl: 'https://pbs.twimg.com/a.jpg',
         },
-        images: ['https://pbs.twimg.com/1.jpg', 'https://pbs.twimg.com/2.jpg'],
+        media: [
+          { kind: 'photo', url: 'https://pbs.twimg.com/1.jpg' },
+          { kind: 'photo', url: 'https://pbs.twimg.com/2.jpg' },
+        ],
         stats: { replies: 196, reposts: 847, likes: 6500, views: 1_500_000 },
       },
     });
   });
 
-  it('keeps only MP4 encodings with a bitrate, highest first', () => {
+  it('keeps only MP4 encodings, highest bitrate first', () => {
     const parsed = parseXStatus(
       body({
         media: {
@@ -73,15 +76,47 @@ describe('parseXStatus', () => {
         },
       }),
     );
-    expect(parsed?.post.images).toEqual([]);
-    expect(parsed?.post.video).toEqual({
-      thumbnailUrl: 'https://pbs.twimg.com/t.jpg',
-      durationSeconds: 108.9,
-      variants: [
-        { url: 'https://video.twimg.com/high.mp4', bitrate: 2_176_000 },
-        { url: 'https://video.twimg.com/low.mp4', bitrate: 256_000 },
-      ],
-    });
+    expect(parsed?.post.media).toEqual([
+      {
+        kind: 'video',
+        thumbnailUrl: 'https://pbs.twimg.com/t.jpg',
+        durationSeconds: 108.9,
+        variants: [
+          { url: 'https://video.twimg.com/high.mp4', bitrate: 2_176_000 },
+          { url: 'https://video.twimg.com/low.mp4', bitrate: 256_000 },
+        ],
+      },
+    ]);
+  });
+
+  it('keeps every item of `all` in post order and drops malformed ones', () => {
+    const parsed = parseXStatus(
+      body({
+        media: {
+          all: [
+            {
+              type: 'gif',
+              duration: 0,
+              formats: [{ url: 'https://video.twimg.com/tweet_video/g.mp4', container: 'mp4' }],
+            },
+            { type: 'photo', url: 'https://pbs.twimg.com/1.jpg' },
+            { type: 'photo', url: 'not a url' },
+            { type: 'mosaic', formats: [] },
+            { type: 'video', duration: 3, formats: [] },
+          ],
+          photos: [{ url: 'https://pbs.twimg.com/ignored.jpg' }],
+        },
+      }),
+    );
+    expect(parsed?.post.media).toEqual([
+      {
+        kind: 'gif',
+        durationSeconds: 0,
+        variants: [{ url: 'https://video.twimg.com/tweet_video/g.mp4', bitrate: 0 }],
+      },
+      { kind: 'photo', url: 'https://pbs.twimg.com/1.jpg' },
+      { kind: 'video', durationSeconds: 3, variants: [] },
+    ]);
   });
 
   it('keeps a GIF encoding that reports no bitrate', () => {
@@ -105,8 +140,13 @@ describe('parseXStatus', () => {
         },
       }),
     );
-    expect(parsed?.post.video?.variants).toEqual([
-      { url: 'https://video.twimg.com/tweet_video/g.mp4', bitrate: 0 },
+    expect(parsed?.post.media).toEqual([
+      {
+        kind: 'gif',
+        thumbnailUrl: 'https://pbs.twimg.com/tweet_video_thumb/g.jpg',
+        durationSeconds: 0,
+        variants: [{ url: 'https://video.twimg.com/tweet_video/g.mp4', bitrate: 0 }],
+      },
     ]);
   });
 
@@ -138,7 +178,7 @@ describe('parseXStatus', () => {
       }),
     );
     expect(parsed?.post.stats).toEqual({ replies: 196, reposts: 847 });
-    expect(parsed?.post.images).toEqual([]);
+    expect(parsed?.post.media).toEqual([]);
     expect(parsed?.post.author).toEqual({
       name: 'NASA',
       handle: 'NASA',

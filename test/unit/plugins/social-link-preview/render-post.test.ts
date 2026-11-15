@@ -1,15 +1,15 @@
 /**
  * Unit tests for the custom X card layouts: the classic embed gallery
- * (author, escaped text, quote, compact counts, timestamp, up to four
- * photos), its video fallback (thumbnail plus a link to the video), the
- * Components V2 card around an uploaded video, and the choice of which
+ * (author, escaped text, quote, compact counts, timestamp, every media
+ * item with GIFs animated), its video fallback (thumbnail plus a link to the
+ * video), the Components V2 card around the media, and the choice of which
  * video encodings to try.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { ComponentType } from 'discord.js';
 
 import type { Translator } from '../../../../src/core/i18n';
-import type { SocialPost } from '../../../../src/infra/link-preview';
+import type { PostClip, PostMedia, SocialPost } from '../../../../src/infra/link-preview';
 import { echoTranslator } from '../../../fixtures/runtime';
 import {
   buildPostContainer,
@@ -26,6 +26,15 @@ const translator: Translator = {
   }),
 };
 
+const photo = (url: string): PostMedia => ({ kind: 'photo', url });
+
+const clip = (kind: PostClip['kind'], extra: Partial<PostClip> = {}): PostClip => ({
+  kind,
+  durationSeconds: 10,
+  variants: [],
+  ...extra,
+});
+
 const post = (extra: Partial<SocialPost> = {}): SocialPost => ({
   url: 'https://x.com/NASA/status/1',
   text: 'Welcome home!',
@@ -36,7 +45,7 @@ const post = (extra: Partial<SocialPost> = {}): SocialPost => ({
     url: 'https://x.com/NASA',
     avatarUrl: 'https://pbs.twimg.com/a.jpg',
   },
-  images: [],
+  media: [],
   stats: { replies: 196, reposts: 847, likes: 6500, views: 1_500_000 },
   ...extra,
 });
@@ -67,7 +76,7 @@ describe('buildPostEmbeds', () => {
   it('spreads up to four https photos over embeds sharing the post URL', () => {
     const images = ['1', '2', '3', '4', '5'].map((n) => `https://pbs.twimg.com/${n}.jpg`);
     const embeds = buildPostEmbeds(
-      post({ images: ['http://insecure/0.jpg', ...images] }),
+      post({ media: ['http://insecure/0.jpg', ...images].map((url) => photo(url)) }),
       translator,
     );
     expect(embeds.map((e) => e.data.image?.url)).toEqual(images.slice(0, 4));
@@ -105,9 +114,7 @@ describe('buildPostEmbeds', () => {
 
   it('shows a video post with its thumbnail and a link to the video', () => {
     const [embed] = buildPostEmbeds(
-      post({
-        video: { thumbnailUrl: 'https://pbs.twimg.com/t.jpg', durationSeconds: 10, variants: [] },
-      }),
+      post({ media: [clip('video', { thumbnailUrl: 'https://pbs.twimg.com/t.jpg' })] }),
       translator,
     );
     expect(embed?.data.image?.url).toBe('https://pbs.twimg.com/t.jpg');
@@ -115,11 +122,46 @@ describe('buildPostEmbeds', () => {
       'Welcome home!\n\npost_watch_video(https://x.com/NASA/status/1)',
     );
   });
+
+  it('shows every item in post order, a GIF as its animation, without a watch link', () => {
+    const embeds = buildPostEmbeds(
+      post({
+        media: [
+          clip('gif', {
+            thumbnailUrl: 'https://pbs.twimg.com/g.jpg',
+            animationUrl: 'https://gif.example/g.gif',
+          }),
+          photo('https://pbs.twimg.com/1.jpg'),
+          clip('gif', { thumbnailUrl: 'https://pbs.twimg.com/h.jpg' }),
+        ],
+      }),
+      translator,
+    );
+    expect(embeds.map((e) => e.data.image?.url)).toEqual([
+      'https://gif.example/g.gif',
+      'https://pbs.twimg.com/1.jpg',
+      'https://pbs.twimg.com/h.jpg',
+    ]);
+    // The second GIF has no animation, so it cannot play in an embed.
+    expect(embeds[0]?.data.description).toContain('post_watch_video');
+  });
+
+  it('links no video when every clip animates in the embed', () => {
+    const [embed] = buildPostEmbeds(
+      post({ media: [clip('gif', { animationUrl: 'https://gif.example/g.gif' })] }),
+      translator,
+    );
+    expect(embed?.data.image?.url).toBe('https://gif.example/g.gif');
+    expect(embed?.data.description).toBe('Welcome home!');
+  });
 });
 
 describe('buildPostContainer', () => {
-  it('puts the text beside the avatar, then the counts, then the video last', () => {
-    const json = buildPostContainer(post(), translator, 'attachment://x-video.mp4').toJSON();
+  it('puts the text beside the avatar, then the counts, then the media last', () => {
+    const json = buildPostContainer(post(), translator, [
+      'https://pbs.twimg.com/1.jpg',
+      'attachment://x-media-2.mp4',
+    ]).toJSON();
     expect(json.accent_color).toBe(0x1d9bf0);
     const [section, footer, gallery] = json.components;
     expect(section?.type).toBe(ComponentType.Section);
@@ -131,7 +173,10 @@ describe('buildPostContainer', () => {
     }
     expect(gallery).toMatchObject({
       type: ComponentType.MediaGallery,
-      items: [{ media: { url: 'attachment://x-video.mp4' } }],
+      items: [
+        { media: { url: 'https://pbs.twimg.com/1.jpg' } },
+        { media: { url: 'attachment://x-media-2.mp4' } },
+      ],
     });
     expect(footer).toMatchObject({
       type: ComponentType.TextDisplay,
@@ -142,13 +187,14 @@ describe('buildPostContainer', () => {
 
   it('uses a plain text block when the author has no avatar', () => {
     const { avatarUrl: _omitted, ...author } = post().author;
-    const json = buildPostContainer(post({ author }), translator, 'attachment://v.mp4').toJSON();
+    const json = buildPostContainer(post({ author }), translator, ['attachment://v.mp4']).toJSON();
     expect(json.components[0]?.type).toBe(ComponentType.TextDisplay);
   });
 });
 
 describe('pickVideoVariants', () => {
-  const video = {
+  const video: PostClip = {
+    kind: 'video',
     durationSeconds: 100,
     variants: [
       { url: 'https://v/high.mp4', bitrate: 2_000_000 },
@@ -171,7 +217,8 @@ describe('pickVideoVariants', () => {
   });
 
   it('leaves an encoding without a bitrate to the download cap', () => {
-    const gif = {
+    const gif: PostClip = {
+      kind: 'gif',
       durationSeconds: 0,
       variants: [{ url: 'https://v/gif.mp4', bitrate: 0 }],
     };

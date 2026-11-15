@@ -267,8 +267,10 @@ previewed, and full-width punctuation directly after a link ends it.
 Threads previews render custom cards from the selected proxy's validated
 OpenGraph text and images, linking to the original post. They do not require
 Discord to expand the proxy URL again. Image cards use the gallery delivery
-described below. A successfully uploaded direct video replaces the preview
-images; failed downloads or uploads retain the image card with a fallback link.
+described below. A successfully uploaded direct video replaces a single preview
+image, which is its poster frame; a multi-image post keeps up to nine images
+ahead of the video in the same card. Failed downloads or uploads retain the image
+card with a fallback link.
 
 Facebook previews use a custom card with a Facebook header, a title linking to
 the source post, and available OpenGraph text and images. All distinct HTTPS
@@ -288,14 +290,26 @@ If browser redirects cannot expand a share link, the provider also tries the
 source-owned permalink from Facebook's OpenGraph before falling back to a card.
 
 With `twitterApiBaseUrls` set, X posts are read from an FxTwitter-compatible
-API and shown as a custom card: author, text, quoted post, up to four photos,
-reply/repost/like/view counts and post time. Video posts still use a proxy link
-when a proxy serves a playable video, so Discord plays it at full quality. When
-none does, the bot uploads the largest MP4 encoding estimated to fit
-`maxVideoBytes` inside a Components V2 card; a GIF, which X serves as an MP4
-without a bitrate, is checked against the cap only while downloading. Failing
-that, the card shows the video thumbnail and a link. Posts the API marks possibly sensitive, and every
-post while no API answers, use a proxy link as before.
+API and shown as a custom card: author, text, quoted post, every photo, video
+and GIF in post order, reply/repost/like/view counts and post time.
+
+- A post whose only media is one video uses a proxy link when a proxy serves a
+  playable video, so Discord plays it at full quality. A proxy shows one media
+  item, so posts with more media always use the card.
+- With `twitterGifBaseUrls` set, each GIF is shown as a looping GIF rendered by
+  the first conversion service that answers `{base}/tweet_video/{name}.gif`
+  (the bot requests it once before posting, which also warms the service's
+  cache). A GIF no service renders is handled like a video.
+- Videos are uploaded into one Components V2 card holding every media item. Each
+  takes the largest MP4 encoding estimated to fit what earlier uploads left of
+  `maxVideoBytes`, which bounds the whole message; a GIF, which X serves as an
+  MP4 without a bitrate, is checked only while downloading. A video that cannot
+  be uploaded shows its thumbnail.
+- With no video uploaded, classic embeds show up to four images (photos, GIF
+  animations, video thumbnails) and link the post when a video is not playable.
+
+Posts the API marks possibly sensitive, and every post while no API answers, use
+a proxy link as before.
 
 When metadata includes a supported direct video URL, the bot downloads it and
 uploads it as a Discord attachment. Video downloads accept only HTTPS URLs
@@ -308,9 +322,10 @@ are expanded by Discord, which controls their layout.
 
 | `social_link_preview` field | Default           | Allowed values                                | Purpose                                                                 |
 | --------------------------- | ----------------- | --------------------------------------------- | ----------------------------------------------------------------------- |
-| `maxVideoBytes`             | `8388608` (8 MiB) | Positive integer, at most `26214400` (25 MiB) | Maximum downloaded video size; Discord may enforce a lower upload limit |
+| `maxVideoBytes`             | `8388608` (8 MiB) | Positive integer, at most `26214400` (25 MiB) | Total video bytes per message; Discord may enforce a lower upload limit |
 | `videoTimeoutMs`            | `15000`           | Positive integer, at most `60000`             | Total video download deadline in milliseconds                           |
 | `twitterApiBaseUrls`        | Unset             | Non-empty list of HTTPS URLs                  | FxTwitter-compatible APIs for custom X cards, tried in order            |
+| `twitterGifBaseUrls`        | Unset             | Non-empty list of HTTPS URLs                  | GIF conversion services for looping X GIFs, tried in order              |
 
 Missing direct video metadata, unsupported media, oversized files, download
 failures and rejected attachments fall back to the custom card and a clickable
@@ -408,15 +423,17 @@ restart after enabling them and re-register slash commands after upgrading.
 to `300000` ms with a full sweep every `12` polls.
 
 X subscriptions use the same hybrid provider and card renderer as shared-link
-previews: text and photo posts become custom cards, playable videos use a proxy,
-and sensitive posts or failed status API reads use the proxy. When a video proxy
-cannot play the post, the bot tries a bounded video upload (8 MiB, 15 seconds),
-then falls back to a thumbnail and source link. The localized announcement and
+previews: posts become custom cards with every media item, a single playable
+video uses a proxy, and sensitive posts or failed status API reads use the proxy.
+Videos the card shows are uploaded within a bounded budget (8 MiB per message,
+15 seconds per download); one that does not fit shows its thumbnail and the card
+links the source. The localized announcement and
 preview are sent together; video cards include the announcement inside their
 Components V2 container.
 
-Feeds use their own `social_feed.platforms.x.apiBaseUrl`, `timeoutMs` and
-`embedProxyHost`; they do not depend on `social_link_preview.enabled` or its
+Feeds use their own `social_feed.platforms.x.apiBaseUrl`, `timeoutMs`,
+`embedProxyHost` and optional `gifBaseUrls` (looping GIFs, as
+`twitterGifBaseUrls` above; unset uploads GIFs as MP4); they do not depend on `social_link_preview.enabled` or its
 provider lists. Status metadata is prepared once per post per account pass and
 shared across subscription channels. If no preview is available, delivery
 retains the existing proxy-link announcement. Pending matches advance only after

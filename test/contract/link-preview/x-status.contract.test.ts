@@ -2,7 +2,8 @@
  * Contract test for the X post API path: real axios through
  * {@link OgClient.fetchJson}, with the HTTP boundary pinned by nock. Covers
  * the request shape (v2 endpoint, JSON accept, descriptive UA), HTTP error
- * mapping, the redirect SSRF guard, and the base-URL fallback.
+ * mapping, the redirect SSRF guard, and the base-URL fallback; and the GIF
+ * conversion check through {@link OgClient.resolveGif}.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import nock from 'nock';
@@ -78,5 +79,57 @@ describe('x status API contract', () => {
 
     const result = await new OgClient().fetchJson(`${PRIMARY}${PATH}`, 'twitter', 1000);
     expect(isErr(result)).toBe(true);
+  });
+});
+
+describe('gif conversion contract', () => {
+  const GIF_BASE = 'https://gif.convert.test';
+  const GIF_PATH = '/tweet_video/Abc.gif';
+
+  beforeAll(() => {
+    if (!nock.isActive()) nock.activate();
+    nock.disableNetConnect();
+  });
+  afterEach(() => {
+    expect(nock.pendingMocks()).toEqual([]);
+    nock.cleanAll();
+  });
+  afterAll(() => {
+    nock.enableNetConnect();
+    nock.restore();
+  });
+
+  it('returns the served URL of a GIF, following a redirect', async () => {
+    nock(GIF_BASE, { reqheaders: { accept: 'image/gif' } })
+      .get(GIF_PATH)
+      .reply(302, '', { Location: 'https://cdn.convert.test/Abc.gif' });
+    nock('https://cdn.convert.test')
+      .get('/Abc.gif')
+      .reply(200, 'GIF89a', { 'Content-Type': 'image/gif' });
+
+    const result = await new OgClient().resolveGif(`${GIF_BASE}${GIF_PATH}`, 'twitter', 1000);
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) expect(result.value).toBe('https://cdn.convert.test/Abc.gif');
+  });
+
+  it('rejects a response that is not a GIF', async () => {
+    nock(GIF_BASE).get(GIF_PATH).reply(200, '<html></html>', { 'Content-Type': 'text/html' });
+
+    const result = await new OgClient().resolveGif(`${GIF_BASE}${GIF_PATH}`, 'twitter', 1000);
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) expect(result.error.code).toBe('LINK_PREVIEW_INVALID_RESPONSE');
+  });
+
+  it('maps an HTTP error and refuses a redirect to an internal address', async () => {
+    nock(GIF_BASE).get(GIF_PATH).reply(502);
+    nock(GIF_BASE)
+      .get('/tweet_video/Def.gif')
+      .reply(302, '', { Location: 'http://127.0.0.1/x.gif' });
+
+    const client = new OgClient();
+    expect(isErr(await client.resolveGif(`${GIF_BASE}${GIF_PATH}`, 'twitter', 1000))).toBe(true);
+    expect(isErr(await client.resolveGif(`${GIF_BASE}/tweet_video/Def.gif`, 'twitter', 1000))).toBe(
+      true,
+    );
   });
 });

@@ -16,6 +16,8 @@ export type {
   LinkPreviewFailure,
   PreviewCard,
   SocialPost,
+  PostClip,
+  PostMedia,
   PostVideoVariant,
 } from './types';
 export { LINK_PREVIEW_PROVIDER_NAMES, GALLERY_SOURCE_NAMES, isGallerySourceName } from './types';

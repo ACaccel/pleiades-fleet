@@ -227,4 +227,32 @@ describe('parseSocialLinkPreviewConfig', () => {
       );
     });
   });
+
+  describe('twitterGifBaseUrls', () => {
+    const enabled = (extra: Record<string, unknown>): unknown => ({
+      enabled: true,
+      ...proxyHosts(),
+      ...extra,
+    });
+
+    it('is optional, so X GIFs are uploaded as MP4 by default', () => {
+      expect(parseSocialLinkPreviewConfig(enabled({})).twitterGifBaseUrls).toBeUndefined();
+    });
+
+    it('accepts a list of https conversion bases', () => {
+      const config = parseSocialLinkPreviewConfig(
+        enabled({ twitterGifBaseUrls: ['https://gif.fxtwitter.com'] }),
+      );
+      expect(config.twitterGifBaseUrls).toEqual(['https://gif.fxtwitter.com']);
+    });
+
+    it('rejects an empty list and a non-https base', () => {
+      expect(issuePaths(parseFailure(enabled({ twitterGifBaseUrls: [] })))).toContain(
+        'twitterGifBaseUrls',
+      );
+      expect(
+        issuePaths(parseFailure(enabled({ twitterGifBaseUrls: ['http://gif.fxtwitter.com'] }))),
+      ).toContain('twitterGifBaseUrls.0');
+    });
+  });
 });

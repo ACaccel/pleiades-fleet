@@ -3,7 +3,8 @@
  * Rewrite providers validate each candidate proxy URL with the Discord
  * crawler UA, so they observe what Discord's unfurl sees; the Bahamut provider
  * scrapes the source page; the X provider reads a JSON API
- * ({@link OgClient.fetchJson}). Every failure lands on the Result's Err rail
+ * ({@link OgClient.fetchJson}) and confirms converted GIFs
+ * ({@link OgClient.resolveGif}). Every failure lands on the Result's Err rail
  * (via {@link translateLinkPreviewError}) so callers can stay silent.
  *
  * Discord's unfurl accepts either an HTML page with OpenGraph tags or a
@@ -41,7 +42,7 @@ import axios from 'axios';
 
 import { ok, err, type Result } from '../../core/result';
 
-import { translateLinkPreviewError } from './error-translator';
+import { invalidResponseError, translateLinkPreviewError } from './error-translator';
 import type { LinkPreviewFailure } from './types';
 
 /** Subset of OpenGraph / Twitter-card tags we map into a preview. */
@@ -612,6 +613,46 @@ export class OgClient {
       });
       return ok(response.data);
     } catch (e: unknown) {
+      return err(translateLinkPreviewError(provider, e));
+    }
+  }
+
+  /**
+   * GET `url` and return the URL it was finally served from when the
+   * response is a GIF, without reading the body. Used by the X provider to
+   * confirm an operator-configured conversion service has rendered a GIF
+   * before a card links it: the request also warms the service's cache, so
+   * Discord's own fetch of the same URL is not the slow first conversion.
+   *
+   * Same contract as {@link fetchJson}: `url` is built from an operator base
+   * and a path the caller derived from API data, every redirect hop is
+   * screened by {@link assertSafeRedirect}, and names resolve through the
+   * bounded lookup. Any other content type is an `INVALID_RESPONSE`.
+   */
+  public async resolveGif(
+    url: string,
+    provider: string,
+    timeoutMs: number,
+  ): Promise<Result<string, LinkPreviewFailure>> {
+    try {
+      const response = await axios.get<Readable>(url, {
+        responseType: 'stream',
+        timeout: timeoutMs,
+        httpAgent: this.httpAgent,
+        httpsAgent: this.httpsAgent,
+        maxRedirects: SAFE_MAX_REDIRECTS,
+        beforeRedirect: (options) => assertSafeRedirect(options),
+        headers: { 'User-Agent': API_USER_AGENT, Accept: 'image/gif' },
+      });
+      discardStream(response.data);
+      const contentType = String(
+        (response.headers as Record<string, unknown>)['content-type'] ?? '',
+      ).toLowerCase();
+      return contentType.startsWith('image/gif')
+        ? ok(readFinalUrl(response, url))
+        : err(invalidResponseError(provider));
+    } catch (e: unknown) {
+      destroyResponseStream(e);
       return err(translateLinkPreviewError(provider, e));
     }
   }

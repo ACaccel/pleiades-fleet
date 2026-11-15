@@ -102,6 +102,8 @@ interface XPlatformOptions {
   readonly timeoutMs: number;
   /** Host substituted into a post permalink so Discord unfurls a playable embed. */
   readonly embedProxyHost: string;
+  /** GIF conversion service bases for looping GIFs; omit to upload GIFs as MP4. */
+  readonly gifBaseUrls?: readonly string[];
   /** Injection seam for tests; production builds an {@link FxTwitterTimelineSource}. */
   readonly source?: XTimelineSource;
   /** Shared preview HTTP boundary; injectable for deterministic hybrid tests. */
@@ -131,6 +133,7 @@ export class XPlatform implements FeedPlatform {
       apiBaseUrls: [options.apiBaseUrl ?? DEFAULT_X_API_BASE_URL],
       proxyHosts: [options.embedProxyHost],
       ogClient: options.ogClient ?? new OgClient(),
+      ...(options.gifBaseUrls === undefined ? {} : { gifBaseUrls: options.gifBaseUrls }),
     });
   }
 

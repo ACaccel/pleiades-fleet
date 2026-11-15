@@ -110,6 +110,7 @@
     },
     "twitterProxyHosts": ["vxtwitter.com", "fixvx.com", "fxtwitter.com", "fixupx.com"],
     "twitterApiBaseUrls": ["https://api.fxtwitter.com"],
+    "twitterGifBaseUrls": ["https://gif.fxtwitter.com"],
     "instagramProxyHosts": ["oginstagram.com", "zzinstagram.com", "fxig.seria.moe"],
     "pixivProxyHosts": ["phixiv.net", "ppxiv.net"],
     "threadsProxyHosts": ["fzthreads.com", "viewthreads.com"],
@@ -140,7 +141,8 @@
       "x": {
         "apiBaseUrl": "https://api.fxtwitter.com",
         "timeoutMs": 8000,
-        "embedProxyHost": "fxtwitter.com"
+        "embedProxyHost": "fxtwitter.com",
+        "gifBaseUrls": ["https://gif.fxtwitter.com"]
       },
       "bahamut": {
         "baseUrl": "https://forum.gamer.com.tw",

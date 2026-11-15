@@ -8,9 +8,10 @@
  *   - `card`: build an {@link EmbedBuilder} from the neutral OpenGraph
  *     card, or a Components V2 card with video below its metadata when a
  *     bounded download succeeds;
- *   - `post`: a custom X card (see `social-post.ts`). A video post uploads
- *     the largest encoding that fits in a Components V2 card, and falls back
- *     to a thumbnail embed linking the video when none can be uploaded.
+ *   - `post`: a custom X card (see `social-post.ts`) with every media item.
+ *     Videos are uploaded, the largest encodings that fit together, into one
+ *     Components V2 card; with none uploadable, embeds show thumbnails and
+ *     link the post.
  *
  * Every reply uses `allowedMentions: { parse: [] }` so preview content
  * can never trigger an @everyone / @role ping (matches `llm-chat`).
@@ -30,9 +31,20 @@ import {
 } from 'discord.js';
 
 import type { Translator } from '../../core/i18n';
-import type { PreviewCard, RenderablePreviewResult, SocialPost } from '../link-preview';
+import type {
+  PostClip,
+  PostMedia,
+  PreviewCard,
+  RenderablePreviewResult,
+  SocialPost,
+} from '../link-preview';
 import { downloadPreviewVideo } from '../link-preview';
-import { buildPostContainer, buildPostEmbeds, pickVideoVariants } from './social-post';
+import {
+  buildPostContainer,
+  buildPostEmbeds,
+  mediaImageUrl,
+  pickVideoVariants,
+} from './social-post';
 
 export type PreviewSender = (payload: MessageCreateOptions) => Promise<unknown>;
 
@@ -42,6 +54,8 @@ const DEFAULT_VIDEO_TIMEOUT_MS = 15_000;
 const MAX_TITLE = 256;
 const MAX_DESCRIPTION = 350;
 const IMAGES_PER_GALLERY = 4;
+/** Discord's item limit for one Components V2 media gallery. */
+const MAX_GALLERY_ITEMS = 10;
 const COMPACT_COUNT = /^(?:0|[1-9]\d*)(?:\.\d+)?[KMBT]$/i;
 
 const isDisplayableCount = (count: number | string | undefined): count is number | string =>
@@ -102,7 +116,11 @@ export const buildCardEmbed = (card: PreviewCard, translator: Translator): Embed
   return embed;
 };
 
-/** Keep uploaded media after all card metadata in a single ordered message. */
+/**
+ * Keep uploaded media after all card metadata in a single ordered message.
+ * A multi-image card (a carousel) keeps its images ahead of the video; a
+ * lone image is the video's poster frame and is dropped.
+ */
 const buildVideoCardContainer = (
   card: PreviewCard,
   translator: Translator,
@@ -124,8 +142,11 @@ const buildVideoCardContainer = (
   for (const content of text) {
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
   }
+  const images = (card.imageUrls ?? [])
+    .filter((image) => image.startsWith('https://'))
+    .slice(0, MAX_GALLERY_ITEMS - 1);
   return container.addMediaGalleryComponents(
-    new MediaGalleryBuilder().addItems((item) => item.setURL(videoUrl)),
+    new MediaGalleryBuilder().addItems([...images, videoUrl].map((url) => ({ media: { url } }))),
   );
 };
 
@@ -180,11 +201,56 @@ const isUploadRejection = (error: unknown): boolean =>
 /** Extension of a downloaded file name, defaulting to `mp4`. */
 const extensionOf = (name: string): string => /\.([a-z0-9]+)$/i.exec(name)?.[1] ?? 'mp4';
 
+/** A clip the bot must upload to show playing: one without an animated rendition. */
+const needsUpload = (item: PostMedia): item is PostClip =>
+  item.kind !== 'photo' && item.animationUrl === undefined && item.variants.length > 0;
+
 /**
- * Reply with a custom X card. A video is uploaded inside a Components V2
- * card, trying the best encoding that fits and then the next one down when
- * the download or the upload fails; with nothing uploadable the classic
- * embed shows the thumbnail and links the video.
+ * Download attempt `attempt` of a post's media: each clip to upload takes
+ * its `attempt`-th encoding that fits what earlier uploads left of
+ * `maxBytes`, since one message carries them all. Other items, and clips
+ * with no such encoding or a failed download, keep their image URL.
+ */
+const downloadPostMedia = async (
+  post: SocialPost,
+  attempt: number,
+  options: PreviewRenderOptions,
+): Promise<{ urls: string[]; files: AttachmentBuilder[]; tried: boolean }> => {
+  const download = options.downloadVideo ?? downloadPreviewVideo;
+  let remaining = options.maxVideoBytes ?? DEFAULT_MAX_VIDEO_BYTES;
+  const urls: string[] = [];
+  const files: AttachmentBuilder[] = [];
+  let tried = false;
+  for (const [index, item] of post.media.entries()) {
+    const variant = needsUpload(item) ? pickVideoVariants(item, remaining)[attempt] : undefined;
+    tried ||= variant !== undefined;
+    const video =
+      variant === undefined
+        ? null
+        : await download(
+            variant.url,
+            remaining,
+            options.videoTimeoutMs ?? DEFAULT_VIDEO_TIMEOUT_MS,
+          ).catch(() => null);
+    if (video === null) {
+      const image = mediaImageUrl(item);
+      if (image?.startsWith('https://') === true) urls.push(image);
+      continue;
+    }
+    const name = `x-media-${index + 1}.${extensionOf(video.name)}`;
+    files.push(new AttachmentBuilder(video.data, { name }));
+    urls.push(`attachment://${name}`);
+    remaining -= video.data.length;
+  }
+  return { urls, files, tried };
+};
+
+/**
+ * Reply with a custom X card. When a clip has to be uploaded to play, every
+ * media item goes into one Components V2 card, trying each clip's best
+ * encoding that fits and then the next one down when downloads or the upload
+ * fail; with nothing uploadable the classic embeds show every item as an
+ * image and link the post.
  */
 const renderPost = async (
   send: PreviewSender,
@@ -192,24 +258,16 @@ const renderPost = async (
   translator: Translator,
   options: PreviewRenderOptions,
 ): Promise<void> => {
-  if (post.video !== undefined) {
-    const maxBytes = options.maxVideoBytes ?? DEFAULT_MAX_VIDEO_BYTES;
-    const download = options.downloadVideo ?? downloadPreviewVideo;
-    for (const variant of pickVideoVariants(post.video, maxBytes)) {
-      const video = await download(
-        variant.url,
-        maxBytes,
-        options.videoTimeoutMs ?? DEFAULT_VIDEO_TIMEOUT_MS,
-      ).catch(() => null);
-      if (video === null) continue;
-      const name = `x-video.${extensionOf(video.name)}`;
+  if (post.media.some(needsUpload)) {
+    for (let attempt = 0; ; attempt += 1) {
+      const { urls, files, tried } = await downloadPostMedia(post, attempt, options);
+      if (!tried) break;
+      if (files.length === 0) continue;
       try {
         await send({
           flags: MessageFlags.IsComponentsV2,
-          components: [
-            buildPostContainer(post, translator, `attachment://${name}`, options.announcement),
-          ],
-          files: [new AttachmentBuilder(video.data, { name })],
+          components: [buildPostContainer(post, translator, urls, options.announcement)],
+          files,
           allowedMentions: NO_MENTIONS,
         });
         return;

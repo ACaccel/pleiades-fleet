@@ -2,11 +2,12 @@
  * Discord layouts for a structured {@link SocialPost} (X).
  *
  * Two layouts, chosen by the renderer:
- *   - classic embeds for a post without an uploaded video. Up to four photos
- *     share the post URL, which Discord renders as one gallery card;
- *   - a Components V2 container for a post whose video the bot uploads, so
- *     the text and the playable video sit in the same card (an embed cannot
- *     carry video).
+ *   - classic embeds for a post without an uploaded video. Every media item
+ *     shares the post URL, which Discord renders as one gallery card: photos,
+ *     GIFs as their animated rendition, and a thumbnail for any other clip;
+ *   - a Components V2 container for a post with an uploaded video, so the
+ *     text and every media item, playable videos included, sit in the same
+ *     card (an embed cannot carry video).
  *
  * Post text is escaped so upstream content cannot inject Discord markdown
  * (headings, masked links, spoilers). Counts are compacted (`1.2K`) to match
@@ -23,10 +24,10 @@ import {
 } from 'discord.js';
 
 import type { Translator } from '../../core/i18n';
-import type { PostVideoVariant, SocialPost } from '../link-preview';
+import type { PostClip, PostMedia, PostVideoVariant, SocialPost } from '../link-preview';
 
 const SITE_LABEL = 'X';
-/** Discord renders at most four images per gallery card. */
+/** Discord renders at most four images per embed gallery card; X posts carry at most four. */
 const MAX_IMAGES = 4;
 const MAX_TEXT = 1500;
 const MAX_QUOTE = 300;
@@ -92,17 +93,26 @@ const postBody = (post: SocialPost, translator: Translator): string => {
 };
 
 /**
- * Classic embeds for a post. For a video post (whose video was not
- * uploaded) the thumbnail stands in for the media and a link points at
- * the video. Exported for tests.
+ * What an embed can show for one media item: the photo, a GIF's animated
+ * rendition, or else a clip's thumbnail. Exported for the renderer.
+ */
+export const mediaImageUrl = (item: PostMedia): string | undefined =>
+  item.kind === 'photo' ? item.url : (item.animationUrl ?? item.thumbnailUrl);
+
+/** A clip an embed cannot play: a video, or a GIF without an animated rendition. */
+const isStillClip = (item: PostMedia): item is PostClip =>
+  item.kind !== 'photo' && item.animationUrl === undefined;
+
+/**
+ * Classic embeds for a post. A clip that cannot play in an embed shows its
+ * thumbnail, and the description links the post to watch it. Exported for
+ * tests.
  */
 export const buildPostEmbeds = (post: SocialPost, translator: Translator): EmbedBuilder[] => {
-  const images = post.images.filter(isHttps).slice(0, MAX_IMAGES);
-  const thumbnail = post.video?.thumbnailUrl;
-  if (images.length === 0 && isHttps(thumbnail)) images.push(thumbnail);
+  const images = post.media.map(mediaImageUrl).filter(isHttps).slice(0, MAX_IMAGES);
 
   let description = postBody(post, translator);
-  if (post.video !== undefined) {
+  if (post.media.some(isStillClip)) {
     const watch = translator.t('replies:social_link_preview.post_watch_video', { url: post.url });
     description = description.length > 0 ? `${description}\n\n${watch}` : watch;
   }
@@ -125,14 +135,15 @@ export const buildPostEmbeds = (post: SocialPost, translator: Translator): Embed
 };
 
 /**
- * A Components V2 card holding the post text and counts above the uploaded
- * video. `videoUrl` is the `attachment://` reference of the upload.
+ * A Components V2 card holding the post text and counts above its media.
+ * `mediaUrls` are the gallery items in post order: `attachment://`
+ * references of uploaded videos and image URLs for everything else.
  * Exported for tests.
  */
 export const buildPostContainer = (
   post: SocialPost,
   translator: Translator,
-  videoUrl: string,
+  mediaUrls: readonly string[],
   announcement?: string,
 ): ContainerBuilder => {
   const heading = `**[${escapeText(post.author.name)}](${post.author.url})** @${post.author.handle}`;
@@ -164,7 +175,9 @@ export const buildPostContainer = (
   }
   return container
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# ${footer}`))
-    .addMediaGalleryComponents(new MediaGalleryBuilder().addItems((item) => item.setURL(videoUrl)));
+    .addMediaGalleryComponents(
+      new MediaGalleryBuilder().addItems(mediaUrls.map((url) => ({ media: { url } }))),
+    );
 };
 
 /**
@@ -173,10 +186,7 @@ export const buildPostContainer = (
  * {@link MAX_VIDEO_ATTEMPTS}. An unreported bitrate (0) always qualifies;
  * the downloader still enforces the real cap. Exported for tests.
  */
-export const pickVideoVariants = (
-  video: NonNullable<SocialPost['video']>,
-  maxBytes: number,
-): PostVideoVariant[] =>
-  video.variants
-    .filter((variant) => (variant.bitrate * video.durationSeconds) / 8 <= maxBytes * SIZE_MARGIN)
+export const pickVideoVariants = (clip: PostClip, maxBytes: number): PostVideoVariant[] =>
+  clip.variants
+    .filter((variant) => (variant.bitrate * clip.durationSeconds) / 8 <= maxBytes * SIZE_MARGIN)
     .slice(0, MAX_VIDEO_ATTEMPTS);

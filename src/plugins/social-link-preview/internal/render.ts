@@ -6,13 +6,16 @@ import { renderPreviewTo, type PreviewRenderOptions } from '../../../infra/disco
 
 export { buildCardEmbed } from '../../../infra/discord/social-preview';
 
-/** Keep thumbnails and source links while withholding downloadable video variants. */
+/** Keep images, GIF animations and source links while withholding downloadable video variants. */
 const withoutDownloads = (result: RenderablePreviewResult): RenderablePreviewResult => {
   if (result.kind === 'card') {
     return { kind: 'card', card: result.card, sourceUrl: result.sourceUrl };
   }
-  if (result.kind === 'post' && result.post.video !== undefined) {
-    return { ...result, post: { ...result.post, video: { ...result.post.video, variants: [] } } };
+  if (result.kind === 'post') {
+    const media = result.post.media.map((item) =>
+      item.kind === 'photo' ? item : { ...item, variants: [] },
+    );
+    return { ...result, post: { ...result.post, media } };
   }
   return result;
 };

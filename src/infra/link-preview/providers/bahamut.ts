@@ -47,6 +47,7 @@ export const createBahamutProvider = (ogClient: OgClient): LinkPreviewProvider =
     if (!result.ok) return result;
 
     const og = result.value;
+    const images = og.images.filter((candidate) => !AGE_GATE_IMAGE.test(candidate));
     const image = og.images[0];
     // No image to improve on, no title to show, or the age gate: skip rather
     // than post a card that says less than Discord's own unfurl.
@@ -66,6 +67,7 @@ export const createBahamutProvider = (ogClient: OgClient): LinkPreviewProvider =
         title: og.title,
         description: og.description,
         imageUrl: image,
+        ...(images.length > 1 ? { imageUrls: images } : {}),
         siteName: og.siteName ?? SITE_LABEL,
       },
       sourceUrl: url.href,

@@ -31,6 +31,7 @@ export const createDefaultFeedPlatformRegistry = (
         apiBaseUrl: platforms.x.apiBaseUrl,
         timeoutMs: platforms.x.timeoutMs,
         embedProxyHost: platforms.x.embedProxyHost,
+        ...(platforms.x.gifBaseUrls === undefined ? {} : { gifBaseUrls: platforms.x.gifBaseUrls }),
       }),
     );
   }

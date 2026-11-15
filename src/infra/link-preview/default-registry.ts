@@ -48,6 +48,8 @@ interface LinkPreviewRegistryDeps {
   readonly twitterProxyHosts: readonly string[];
   /** FxTwitter-compatible API bases for custom X cards; omit to proxy every tweet. */
   readonly twitterApiBaseUrls?: readonly string[];
+  /** GIF conversion service bases for X GIFs; omit to upload them as MP4. */
+  readonly twitterGifBaseUrls?: readonly string[];
   /** Instagram embed-proxy hosts, probed in list order. */
   readonly instagramProxyHosts: readonly string[];
   /** Pixiv embed-proxy hosts; omitted to keep existing configurations unchanged. */
@@ -79,6 +81,7 @@ export const createDefaultLinkPreviewRegistry = (
       proxyHosts: deps.twitterProxyHosts,
       ogClient,
       ...(deps.twitterApiBaseUrls === undefined ? {} : { apiBaseUrls: deps.twitterApiBaseUrls }),
+      ...(deps.twitterGifBaseUrls === undefined ? {} : { gifBaseUrls: deps.twitterGifBaseUrls }),
     }),
     createInstagramProvider({ proxyHosts: deps.instagramProxyHosts, ogClient }),
     ...(deps.pixivProxyHosts === undefined

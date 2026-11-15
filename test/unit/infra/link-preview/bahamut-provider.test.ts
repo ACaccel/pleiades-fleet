@@ -65,6 +65,23 @@ describe('bahamut provider build', () => {
     }
   });
 
+  it('keeps every image except the age-gate banner', async () => {
+    const provider = createBahamutProvider(
+      makeOgClient({
+        title: 't',
+        images: [
+          'https://cdn/1.jpg',
+          'https://i2.bahamut.com.tw/child-protection.png',
+          'https://cdn/2.jpg',
+        ],
+      }),
+    );
+    const result = await provider.build(url, { timeoutMs: 1000 });
+    if (!isOk(result) || result.value?.kind !== 'card') throw new Error('expected a card');
+    expect(result.value.card.imageUrl).toBe('https://cdn/1.jpg');
+    expect(result.value.card.imageUrls).toEqual(['https://cdn/1.jpg', 'https://cdn/2.jpg']);
+  });
+
   it('defaults the site label when og:site_name is absent', async () => {
     const provider = createBahamutProvider(
       makeOgClient({ title: 't', images: ['https://cdn/og.jpg'] }),
