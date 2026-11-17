@@ -2,7 +2,7 @@ import type { ChatInputCommandInteraction } from 'discord.js';
 import type { BaseBot } from '@bot';
 import { Command } from '../command';
 
-import { STICKER_RANK_LIMIT } from '../traffic-shared/dashboard';
+import { STICKER_DEFAULT_CARDS, STICKER_RANK_LIMIT } from '../traffic-shared/dashboard';
 import {
   readChoice,
   trafficCommandOptions,
@@ -15,6 +15,7 @@ import { USAGE_ORDERS } from '../traffic-shared/usage-ranking';
 const OPTIONS: TrafficOptionSpec = {
   defaultRange: '30d',
   maxTopN: STICKER_RANK_LIMIT,
+  defaultTopN: STICKER_DEFAULT_CARDS,
   adjustableTopN: true,
 };
 

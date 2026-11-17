@@ -72,6 +72,29 @@ const gapFor = (built: Built, height: number): number => {
   return spread > 0 && spread <= MAX_GAP_SPREAD ? SECTION_GAP + spread : SECTION_GAP;
 };
 
+/**
+ * The candidate layout Discord shows with the largest text: an image is
+ * scaled to fit the 4:3 box, so the layout whose canvas has the smallest
+ * larger side (height measured in box widths) wins; earlier candidates win
+ * ties. Each candidate gives its column widths and its content height.
+ */
+export const largestInEmbed = <T>(
+  candidates: readonly T[],
+  layout: (candidate: T) => { readonly widths: readonly number[]; readonly height: number },
+): T | undefined => {
+  let best: T | undefined;
+  let bestSide = Number.POSITIVE_INFINITY;
+  for (const candidate of candidates) {
+    const { widths, height } = layout(candidate);
+    const side = Math.max(canvasWidth(widths), (PAD + height + BOTTOM_PAD) * EMBED_IMAGE_ASPECT);
+    if (side < bestSide) {
+      best = candidate;
+      bestSide = side;
+    }
+  }
+  return best;
+};
+
 export interface ColumnsOptions {
   /** The canvas grows taller rather than be wider than this ratio. */
   readonly maxAspect?: number;

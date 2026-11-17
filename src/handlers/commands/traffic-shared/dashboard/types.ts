@@ -106,7 +106,7 @@ export interface EmojiRanking {
   readonly reactionLabel: string;
   /** Chip text for animated emoji, e.g. `GIF`. */
   readonly animatedTag: string;
-  /** Up to `EMOJI_RANK_LIMIT` rows, split evenly into two halves. */
+  /** Up to `EMOJI_RANK_LIMIT` rows, split evenly into lanes of at most twenty. */
   readonly rows: readonly EmojiRankRow[];
   readonly note?: string;
 }

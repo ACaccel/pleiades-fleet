@@ -10,7 +10,7 @@ import { createCanvas, type CanvasRenderingContext2D } from 'canvas';
 import { ensureCanvasFont } from '../../../../infra/graphics/canvas-font';
 import { drawLegend, legendWidth, type LegendItem } from './shapes';
 import { drawFitted, textWidth } from './text';
-import { COLOR, COLUMN_GAP } from './theme';
+import { COLOR } from './theme';
 
 export type Ctx = CanvasRenderingContext2D;
 
@@ -24,12 +24,6 @@ export interface Column {
   readonly x: number;
   readonly w: number;
 }
-
-/** Halves of a column split at `leftW`, with the standard pair gap between them. */
-export const splitColumn = (col: Column, leftW: number): readonly [Column, Column] => [
-  { x: col.x, w: leftW },
-  { x: col.x + leftW + COLUMN_GAP, w: col.w - leftW - COLUMN_GAP },
-];
 
 export const TITLE_HEIGHT = 26;
 /** A legend that does not fit beside its title wraps to a line of this height. */

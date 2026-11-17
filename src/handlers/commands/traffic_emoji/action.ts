@@ -2,7 +2,7 @@ import type { ChatInputCommandInteraction } from 'discord.js';
 import type { BaseBot } from '@bot';
 import { Command } from '../command';
 
-import { EMOJI_RANK_LIMIT } from '../traffic-shared/dashboard';
+import { EMOJI_DEFAULT_ROWS, EMOJI_RANK_LIMIT } from '../traffic-shared/dashboard';
 import { buildEmojiReport, EMOJI_KINDS, EMOJI_SOURCES } from '../traffic-shared/emoji-report';
 import {
   readChoice,
@@ -15,6 +15,7 @@ import { USAGE_ORDERS } from '../traffic-shared/usage-ranking';
 const OPTIONS: TrafficOptionSpec = {
   defaultRange: '30d',
   maxTopN: EMOJI_RANK_LIMIT,
+  defaultTopN: EMOJI_DEFAULT_ROWS,
   adjustableTopN: true,
 };
 

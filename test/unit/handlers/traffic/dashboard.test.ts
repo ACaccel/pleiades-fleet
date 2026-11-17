@@ -11,8 +11,10 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   APP_RANK_LIMIT,
+  EMOJI_DEFAULT_ROWS,
   EMOJI_RANK_LIMIT,
   RANK_ROW_LIMIT,
+  STICKER_DEFAULT_CARDS,
   STICKER_RANK_LIMIT,
   renderAppSingleDashboard,
   renderAppsDashboard,
@@ -34,8 +36,10 @@ const WIDTHS = {
   activity: [300, 300], // activity.ts COLUMN_WIDTH, both images
   apps: [260, 300], // apps.ts APPS_LAYOUT
   appSingle: [290, 270], // apps.ts APP_SINGLE_LAYOUT
-  emoji: [200, 480], // emoji.ts
+  emoji: [200, 480], // emoji.ts, two lanes
+  emojiFull: [200, 5 * 230 + 4 * 20], // emoji.ts, five lanes
   sticker: [200, 4 * 116 + 3 * 8], // sticker.ts
+  stickerFull: [200, 6 * 116 + 5 * 8], // sticker.ts, six cards a row
 } as const;
 
 /** Display scale of a logical canvas inside Discord's ~560 x 420 embed image box. */
@@ -360,6 +364,45 @@ describe('empty and optional sections', () => {
     expect(size(bareEmoji).width).toBe(emojiSize);
     expect(size(bareSticker).width).toBe(stickerSize);
   });
+
+  it.each([
+    [
+      'emoji',
+      (n: number) => {
+        const base = fixtures.emoji();
+        return renderEmojiDashboard({
+          ...base,
+          ranking: { ...base.ranking, rows: fixtures.emojiRows(n) },
+        });
+      },
+      EMOJI_DEFAULT_ROWS,
+      EMOJI_RANK_LIMIT,
+      WIDTHS.emoji,
+      WIDTHS.emojiFull,
+    ],
+    [
+      'sticker',
+      (n: number) => {
+        const base = fixtures.sticker();
+        return renderStickerDashboard({
+          ...base,
+          ranking: { ...base.ranking, rows: fixtures.stickerRows(n) },
+        });
+      },
+      STICKER_DEFAULT_CARDS,
+      STICKER_RANK_LIMIT,
+      WIDTHS.sticker,
+      WIDTHS.stickerFull,
+    ],
+  ] as const)(
+    'keeps the %s default layout and widens a full ranking instead of growing tall',
+    (_, render, defaultRows, limit, defaultWidths, fullWidths) => {
+      expect(size(render(defaultRows)).width).toBe(px(canvasWidth(defaultWidths)));
+      const full = size(render(limit));
+      expect(full.width).toBe(px(canvasWidth(fullWidths)));
+      expect(full.width / full.height).toBeGreaterThan(1);
+    },
+  );
 
   it.each([
     ['emoji', () => fixtures.emoji(), renderEmojiDashboard],

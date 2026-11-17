@@ -1,7 +1,8 @@
 /**
  * The column composer and the column-aware blocks: columns sit side by
  * side at their widths; the canvas is as tall as the tallest column, and
- * with `maxAspect` never wider than that ratio; a growing column is rebuilt with the
+ * with `maxAspect` never wider than that ratio; the layout picker prefers the
+ * candidate Discord shows largest; a growing column is rebuilt with the
  * spare height, and other columns spread it over their section gaps only
  * while the gaps stay close; a legend too wide for its title line wraps;
  * the heatmap moves its peak caption to its own line when the legend and
@@ -15,6 +16,7 @@ import {
   EMBED_IMAGE_ASPECT,
   SECTION_GAP,
   canvasWidth,
+  largestInEmbed,
   renderColumns,
   type ColumnSpec,
 } from '../../../../src/handlers/commands/traffic-shared/dashboard/columns';
@@ -148,6 +150,21 @@ describe('renderColumns', () => {
     const [r, g, b] = ctx.getImageData(dividerX, (PAD + 20) * SCALE, 1, 1).data;
     const grid = Number.parseInt(COLOR.grid.slice(1), 16);
     expect([r, g, b]).toEqual([(grid >> 16) & 255, (grid >> 8) & 255, grid & 255]);
+  });
+});
+
+describe('largestInEmbed', () => {
+  const box = (width: number, height: number) => ({ widths: [width - 2 * PAD], height });
+
+  it('picks the layout whose larger side in 4:3 box widths is smallest', () => {
+    // A tall strip is fitted by height, a wide band by width; the near-4:3 middle wins.
+    const layouts = { strip: box(400, 1200), square: box(900, 600), band: box(1600, 300) };
+    expect(largestInEmbed(['strip', 'square', 'band'] as const, (k) => layouts[k])).toBe('square');
+  });
+
+  it('keeps the earlier candidate on a tie and returns undefined without candidates', () => {
+    expect(largestInEmbed([1, 2], () => box(800, 300))).toBe(1);
+    expect(largestInEmbed([], () => box(800, 300))).toBeUndefined();
   });
 });
 

@@ -22,7 +22,9 @@ import Traffic from '../../../../src/handlers/commands/traffic';
 import TrafficOverview from '../../../../src/handlers/commands/traffic/action';
 import TrafficApps from '../../../../src/handlers/commands/traffic_apps/action';
 import TrafficChannel from '../../../../src/handlers/commands/traffic_channel/action';
+import TrafficEmoji from '../../../../src/handlers/commands/traffic_emoji/action';
 import TrafficMe from '../../../../src/handlers/commands/traffic_me/action';
+import TrafficSticker from '../../../../src/handlers/commands/traffic_sticker/action';
 import TrafficUser from '../../../../src/handlers/commands/traffic_user/action';
 import {
   APP_RANK_LIMIT,
@@ -174,6 +176,14 @@ describe('/traffic subcommands', () => {
     const apps = await run({ subcommand: 'apps' });
     const usage = apps.stats.calls.filter((call) => call.method === 'appUsage');
     expect(usage[0]?.limits?.members).toBe(RANK_ROW_LIMIT);
+  });
+
+  it.each([
+    ['emoji', TrafficEmoji, 100],
+    ['sticker', TrafficSticker, 30],
+  ] as const)('lets members rank up to %s %s rows with top_n', (_, Action, max) => {
+    const option = new Action().config.options?.integer?.find((o) => o.name === 'top_n');
+    expect(option).toEqual({ name: 'top_n', required: false, min: 1, max });
   });
 
   it('defers publicly by default and ephemerally on request', async () => {

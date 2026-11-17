@@ -2,29 +2,32 @@
  * Server-sticker dashboard in two columns: the summary tiles
  * above the pictures of stickers nobody used, beside a grid of ranked sticker
  * cards (art, name, count with share, usage bar relative to the top
- * sticker).
+ * sticker). Four to six cards a row, whichever Discord shows largest in its
+ * 4:3 image box, so a long ranking grows wider instead of into a tall strip.
  */
 import { roundRect } from '../canvas-primitives';
 import { drawArt } from './art';
-import { renderColumns } from './columns';
-import { sectionTitle, type Block, type Column, type Ctx } from './layout';
+import { largestInEmbed, renderColumns } from './columns';
+import { TITLE_HEIGHT, sectionTitle, type Block, type Column, type Ctx } from './layout';
 import { drawFitted, drawText, fitText, textWidth } from './text';
 import { COLOR, formatCount, formatPercent } from './theme';
 import { tileRows } from './tiles';
 import type { StickerDashboard, StickerRanking, StickerRankRow } from './types';
 import { unusedBlocks } from './unused';
 
-const COLUMNS = 4;
-/** Three rows of four cards. */
-export const STICKER_RANK_LIMIT = COLUMNS * 3;
+/** Cards a row to choose from. */
+const COLUMN_CHOICES = [4, 5, 6] as const;
+/** Cards drawn when the member does not choose: three rows of four. */
+export const STICKER_DEFAULT_CARDS = 12;
+/** The most cards a ranking draws: five rows of six. */
+export const STICKER_RANK_LIMIT = 30;
 
 const GAP = 8;
 const CARD_WIDTH = 116;
 const CARD_HEIGHT = 138;
 /** The image is wider than 4:3, so narrow columns enlarge the displayed text. */
 const SUMMARY_WIDTH = 200;
-const GRID_WIDTH = COLUMNS * CARD_WIDTH + GAP * (COLUMNS - 1);
-/** Picture rows that keep the summary column no taller than a full grid. */
+/** Picture rows that keep the summary column no taller than a default grid. */
 const UNUSED_ROWS = 6;
 const UNUSED_SIZE = 36;
 const ART_SIZE = 70;
@@ -79,10 +82,27 @@ const drawCard = (
   ctx.fill();
 };
 
+const shownCards = (ranking: StickerRanking): StickerRanking['rows'] =>
+  ranking.rows.slice(0, STICKER_RANK_LIMIT);
+
+const gridWidth = (columns: number): number => columns * CARD_WIDTH + GAP * (columns - 1);
+
+const gridHeight = (cards: number, columns: number): number => {
+  const rows = Math.ceil(cards / columns);
+  return rows === 0 ? 0 : rows * (CARD_HEIGHT + GAP) - GAP;
+};
+
+/** The cards a row that show the ranking largest in Discord's image box. */
+const columnCount = (cards: number): number =>
+  largestInEmbed(COLUMN_CHOICES, (columns) => ({
+    widths: [SUMMARY_WIDTH, gridWidth(columns)],
+    height: TITLE_HEIGHT + gridHeight(cards, columns) + NOTE_HEIGHT,
+  })) ?? COLUMN_CHOICES[0];
+
 const rankingBlocks = (measure: Ctx, ranking: StickerRanking, col: Column): Block[] => {
-  const rows = ranking.rows.slice(0, STICKER_RANK_LIMIT);
-  const gridRows = Math.ceil(rows.length / COLUMNS);
-  const gridH = gridRows === 0 ? 0 : gridRows * (CARD_HEIGHT + GAP) - GAP;
+  const rows = shownCards(ranking);
+  const columns = columnCount(rows.length);
+  const gridH = gridHeight(rows.length, columns);
   const noteH = ranking.note === undefined ? 0 : NOTE_HEIGHT;
   const card: CardContext = {
     caption: ranking.countCaption,
@@ -95,8 +115,8 @@ const rankingBlocks = (measure: Ctx, ranking: StickerRanking, col: Column): Bloc
       height: gridH + noteH,
       draw: (ctx, y) => {
         rows.forEach((row, i) => {
-          const cx = col.x + (i % COLUMNS) * (CARD_WIDTH + GAP);
-          const cy = y + Math.floor(i / COLUMNS) * (CARD_HEIGHT + GAP);
+          const cx = col.x + (i % columns) * (CARD_WIDTH + GAP);
+          const cy = y + Math.floor(i / columns) * (CARD_HEIGHT + GAP);
           drawCard(ctx, row, i + 1, card, cx, cy);
         });
         if (ranking.note === undefined) return;
@@ -117,5 +137,8 @@ export const renderStickerDashboard = (data: StickerDashboard): Buffer =>
           : unusedBlocks(measure, data.unused, col, UNUSED_ROWS, UNUSED_SIZE),
       ],
     },
-    { width: GRID_WIDTH, sections: (col, measure) => [rankingBlocks(measure, data.ranking, col)] },
+    {
+      width: gridWidth(columnCount(shownCards(data.ranking).length)),
+      sections: (col, measure) => [rankingBlocks(measure, data.ranking, col)],
+    },
   ]);

@@ -630,7 +630,9 @@ displays larger text:
   larger than in one 4:3 image and the pair stays short.
 - `apps` fills exactly 4:3 (a taller trend uses any spare height); the emoji and
   sticker dashboards are a little wider, where extra height would only add empty
-  space.
+  space. A longer ranking spreads over up to five emoji lanes or six sticker cards
+  a row, whichever count Discord shows largest, so it grows wider rather than into
+  a tall strip.
 
 `overview` and `channel` also list the top 3 messages in the first embed's text,
 under a bold heading; Discord shows that text above the image. The reply has no
@@ -654,7 +656,7 @@ only as a reply in this ranking.
 Shared options: `range` (`24h`, `7d`, `30d`, `90d`, `365d`; default `7d`, `30d` for
 emoji and stickers) and `visibility` (`public` by default, `ephemeral` by default for
 `user`, which reports on another member). Rankings draw 5 rows for members, channels
-and apps; only `emoji` and `sticker` take `top_n` (up to 20 and 12) to show fewer. `24h`
+and apps; only `emoji` and `sticker` take `top_n` (1–100 and 1–30; default 20 and 12). `24h`
 is a rolling window; the other ranges are whole local days ending today, so `7d`
 shows seven daily points with today last, compared with the same span one range
 earlier. Messages in the gap between those windows count in neither trend;

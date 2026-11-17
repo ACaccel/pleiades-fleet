@@ -1,8 +1,8 @@
 /**
  * The `visibility` / `range` / `top_n` options the `/traffic` subcommands
  * share: their declaration and their parsing. Each subcommand picks its range
- * and visibility defaults and its row count, which is the most rows its
- * dashboard draws; only subcommands with long rankings let members lower it
+ * and visibility defaults and its row count, bounded by the most rows its
+ * dashboard draws; only subcommands with long rankings let members choose it
  * through `top_n`. Subcommand-specific options are declared and read by the
  * subcommand.
  *
@@ -25,9 +25,11 @@ export interface TrafficOptionSpec {
   readonly defaultRange: TrafficRange;
   /** Who sees the reply when `visibility` is omitted; `public` by default. */
   readonly defaultVisibility?: Visibility;
-  /** Largest and default row count: the most rows the subcommand's dashboard draws. */
+  /** Largest row count: the most rows the subcommand's dashboard draws. */
   readonly maxTopN: number;
-  /** Offer `top_n` so members can show fewer rows; only worth it for long rankings. */
+  /** Row count when `top_n` is omitted or not offered; `maxTopN` by default. */
+  readonly defaultTopN?: number;
+  /** Offer `top_n` so members can choose the row count; only worth it for long rankings. */
   readonly adjustableTopN?: boolean;
 }
 
@@ -73,7 +75,7 @@ export const readTrafficOptions = (
   const topN =
     typeof rawTopN === 'number' && Number.isFinite(rawTopN)
       ? Math.min(spec.maxTopN, Math.max(1, Math.floor(rawTopN)))
-      : spec.maxTopN;
+      : Math.min(spec.maxTopN, spec.defaultTopN ?? spec.maxTopN);
   return {
     visibility: pick(
       interaction.options.get('visibility')?.value,

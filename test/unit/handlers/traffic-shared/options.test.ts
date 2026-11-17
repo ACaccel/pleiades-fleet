@@ -69,6 +69,21 @@ describe('readTrafficOptions', () => {
     expect(readTrafficOptions(interactionWith({ top_n: raw }), RANKED).topN).toBe(expected);
   });
 
+  it('uses defaultTopN when top_n is omitted but still accepts up to maxTopN', () => {
+    const roomy = {
+      defaultRange: '30d',
+      maxTopN: 100,
+      defaultTopN: 20,
+      adjustableTopN: true,
+    } as const;
+    expect(readTrafficOptions(interactionWith({}), roomy).topN).toBe(20);
+    expect(readTrafficOptions(interactionWith({ top_n: 100 }), roomy).topN).toBe(100);
+    expect(readTrafficOptions(interactionWith({ top_n: 250 }), roomy).topN).toBe(100);
+    expect(trafficCommandOptions(roomy).integer).toEqual([
+      { name: 'top_n', required: false, min: 1, max: 100 },
+    ]);
+  });
+
   it('ignores top_n on a subcommand that does not offer it', () => {
     expect(readTrafficOptions(interactionWith({ top_n: 3 }), ACTIVITY).topN).toBe(10);
   });

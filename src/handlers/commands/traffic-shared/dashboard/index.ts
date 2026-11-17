@@ -8,9 +8,9 @@
  */
 export { renderChannelDashboard, renderOverviewDashboard, renderPersonDashboard } from './activity';
 export { renderAppSingleDashboard, renderAppsDashboard } from './apps';
-export { EMOJI_RANK_LIMIT, renderEmojiDashboard } from './emoji';
+export { EMOJI_DEFAULT_ROWS, EMOJI_RANK_LIMIT, renderEmojiDashboard } from './emoji';
 export { EMOJI_SLOT, richFromTemplate } from './rich';
-export { STICKER_RANK_LIMIT, renderStickerDashboard } from './sticker';
+export { STICKER_DEFAULT_CARDS, STICKER_RANK_LIMIT, renderStickerDashboard } from './sticker';
 export { APP_RANK_LIMIT, RANK_ROW_LIMIT, formatCount, formatPercent } from './theme';
 export type {
   AppRow,
