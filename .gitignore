@@ -19,6 +19,9 @@ snippet.ts
 debug.sh
 /coverage
 
+# Local scratch output, such as ad-hoc guild asset backups.
+/tmp/
+
 # Internal design / proposal working documents are kept local, not
 # version-controlled (the v1.0.0 cleanup removed the tracked ones).
 docs/proposal.md
